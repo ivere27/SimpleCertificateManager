@@ -170,7 +170,8 @@ public:
     this->request = buf;
   }
 
-  string signRequest(const char* csr_str = NULL,
+  string signRequest(int digest = 1,              // default sha1
+                     const char* csr_str = NULL,
                      const char* serial = NULL,
                      int days = 365) {
       bool isSelfSigned = (csr_str == NULL);
@@ -197,6 +198,8 @@ public:
           throw std::runtime_error("s2i_ASN1_INTEGER");
       }
 
+      if (!X509_set_serialNumber(x509, aserial))
+        throw std::runtime_error("X509_set_serialNumber");
 
       X509_NAME* name = X509_REQ_get_subject_name(x509_req);
       if (!X509_set_subject_name(x509, name))
@@ -205,9 +208,15 @@ public:
       if (isSelfSigned) { // issuer = subject
         if (!X509_set_issuer_name(x509, name))
           throw std::runtime_error("X509_set_issuer_name");
+      } else {
+        X509_NAME* issuerName = X509_get_subject_name(x);
+
+        if (!X509_set_issuer_name(x509, issuerName))
+          throw std::runtime_error("X509_set_issuer_name");
       }
 
-      if (!X509_set_pubkey(x509, key))
+      EVP_PKEY *pktmp = X509_REQ_get0_pubkey(x509_req);
+      if (!X509_set_pubkey(x509, pktmp))
         throw std::runtime_error("X509_set_pubkey");
 
       ASN1_UTCTIME *startdate = X509_gmtime_adj(X509_get_notBefore(x509),0);
@@ -223,24 +232,54 @@ public:
       if (isSelfSigned)
         X509V3_set_ctx(&ctx, x509, x509, NULL, NULL, 0);
       else
-        throw std::runtime_error("ROOTCA is not supported");    // FIXME : support chaining
+        X509V3_set_ctx(&ctx, x, x509, NULL, NULL, 0);
 
-      if (!X509_sign(x509, key, EVP_sha256()))
+      EVP_MD const *md = NULL;
+      switch (digest) {    // FIXME : only sha?
+        case 1:
+          md = EVP_sha1();
+          break;
+        case 224:
+          md = EVP_sha224();
+          break;
+        case 256:
+          md = EVP_sha256();
+          break;
+        case 512:
+          md = EVP_sha512();
+          break;
+        default:
+          throw std::runtime_error("EVP_MD");
+      }
+
+      if (!X509_sign(x509, key, md))
         throw std::runtime_error("X509_sign");
 
-      BIO *crt = BIO_new(BIO_s_mem());
-      if (!PEM_write_bio_X509(crt, x509))
+      BIO *crt_bio = BIO_new(BIO_s_mem());
+      if (!PEM_write_bio_X509(crt_bio, x509))
         throw std::runtime_error("PEM_write_bio_X509");
 
-      int len = BIO_pending(crt);
+      int len = BIO_pending(crt_bio);
       if (len < 0)
         throw std::runtime_error("BIO_pending");
 
       char buf[len+1];
-      BIO_read(crt, buf, len);
-      BIO_free(crt);
+      BIO_read(crt_bio, buf, len);
+      BIO_free(crt_bio);
 
+      this->x = x509;
       return buf;
+  }
+
+  void loadCertificate(const char* crt_str) {
+    this->certificate = crt_str;
+    BIO* crt_bio = BIO_new_mem_buf(crt_str, -1);
+    X509* x509 = PEM_read_bio_X509(crt_bio, NULL, NULL, NULL);
+    BIO_free(crt_bio);
+    if (x509 == NULL)
+      throw std::runtime_error("PEM_read_bio_X509");
+
+    this->x = x509;
   }
 
 private:
@@ -248,12 +287,14 @@ private:
   std::string privateKey;
   std::string publicKey;
   std::string request;
+  std::string certificate;
 
   int kbits = 2048;
   BIO *pri_bio  = NULL;
   BIO *pub_bio = NULL;
   RSA *rsa  = NULL;
   BIGNUM *bn  = NULL;
+  X509* x = NULL;
 };
 
 } // namespace certificate
