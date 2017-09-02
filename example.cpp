@@ -13,7 +13,7 @@ int main() {
     rootPrivate = root.getPrivateKeyString();
     rootPublic = root.getPublicKeyString();
 
-    int digest = 256;                               // sha256
+    const char* digest = "sha256";                  // sha256
     const char* countryName = "US";                 // 2 chars
     const char* stateOrProvinceName = "ROOT-ST";
     const char* localityName = "ROOT-L";
@@ -21,17 +21,17 @@ int main() {
     const char* organizationalUnitName   = "ROOT-OU";
     const char* commonName = "www.example.com";
 
-    root.genRequest(digest,
-                    countryName,
+    root.genRequest(countryName,
                     stateOrProvinceName,
                     localityName,
                     organizationName,
                     organizationalUnitName,
-                    commonName);
+                    commonName,
+                    digest);
     rootRequest = root.getRequestString();
 
-    // ROOTCA(self-signed). digest : sha256, serial : 0, days : 365
-    rootCertificate = root.signRequest(digest, NULL, NULL, 365);
+    // ROOTCA(self-signed). csr: null, serial : 0, days : 365, digest : sha256
+    rootCertificate = root.signRequest(NULL, NULL, 365, digest);
   } catch(std::exception const& e) {
     cout << e.what();
   }
@@ -47,7 +47,7 @@ int main() {
     certPrivate = cert.getPrivateKeyString();
     certPublic = cert.getPublicKeyString();
 
-    int digest = 512;                               // sha512
+    const char* digest = "sha256";                  // sha256
     const char* countryName = "US";                 // 2 chars
     const char* stateOrProvinceName = "CERT-ST";
     const char* localityName = "CERT-L";
@@ -55,17 +55,17 @@ int main() {
     const char* organizationalUnitName   = "CERT-OU";
     const char* commonName = "www.example.org";
 
-    cert.genRequest(digest,
-                    countryName,
+    cert.genRequest(countryName,
                     stateOrProvinceName,
                     localityName,
                     organizationName,
                     organizationalUnitName,
-                    commonName);
+                    commonName,
+                    digest);
     certRequest = cert.getRequestString();
 
     // signed by root. digest : sha512, serial : 1, days : 7
-    certCertificate = root.signRequest(digest, certRequest.c_str(), "1", 7);
+    certCertificate = root.signRequest(certRequest.c_str(), "1", 7, digest);
 
   } catch(std::exception const& e) {
     cout << e.what();
@@ -81,7 +81,7 @@ int main() {
     otherRequest = other.getRequestByCertificate(certCertificate.c_str());
 
     // signed by root. digest : sha512, serial : 2, days : 14
-    otherCertificate = root.signRequest(512, otherRequest.c_str(), "2", 14);
+    otherCertificate = root.signRequest(otherRequest.c_str(), "2", 14, "sha512");
   } catch(std::exception const& e) {
     cout << e.what();
   }

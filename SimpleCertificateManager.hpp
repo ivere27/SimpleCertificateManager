@@ -165,13 +165,13 @@ public:
     return buf;
   }
 
-  void genRequest(int digest,
-                  const char* countryName,
+  void genRequest(const char* countryName,
                   const char* stateOrProvinceName,
                   const char* localityName,
                   const char* organizationName,
                   const char* organizationalUnitName,
-                  const char* commonName) {
+                  const char* commonName,
+                  const char* digest = "sha1") {
     BIO *csr = BIO_new(BIO_s_mem());
     X509_REQ *x509_req = X509_REQ_new();
 
@@ -197,23 +197,9 @@ public:
     if (!X509_REQ_set_pubkey(x509_req, key))
       throw std::runtime_error("X509_REQ_set_pubkey");
 
-    EVP_MD const *md = NULL;
-    switch (digest) {    // FIXME : only sha?
-      case 1:
-        md = EVP_sha1();
-        break;
-      case 224:
-        md = EVP_sha224();
-        break;
-      case 256:
-        md = EVP_sha256();
-        break;
-      case 512:
-        md = EVP_sha512();
-        break;
-      default:
-        throw std::runtime_error("EVP_MD");
-    }
+    EVP_MD const *md = EVP_get_digestbyname(digest);
+    if (md == NULL)
+      throw std::runtime_error("unknown digest");
 
     // set sign key
     if (X509_REQ_sign(x509_req, key, md) <= 0)
@@ -234,10 +220,10 @@ public:
     this->request = buf;
   }
 
-  string signRequest(int digest = 1,              // default sha1
-                     const char* csr_str = NULL,
+  string signRequest(const char* csr_str = NULL,
                      const char* serial = NULL,
-                     int days = 365) {
+                     int days = 365,
+                     const char* digest = "sha1") {       // default sha1
       bool isSelfSigned = (csr_str == NULL);
       if (csr_str == NULL) {  // self-signed
         csr_str = this->request.c_str();
@@ -298,23 +284,10 @@ public:
       else
         X509V3_set_ctx(&ctx, x, x509, NULL, NULL, 0);
 
-      EVP_MD const *md = NULL;
-      switch (digest) {    // FIXME : only sha?
-        case 1:
-          md = EVP_sha1();
-          break;
-        case 224:
-          md = EVP_sha224();
-          break;
-        case 256:
-          md = EVP_sha256();
-          break;
-        case 512:
-          md = EVP_sha512();
-          break;
-        default:
-          throw std::runtime_error("EVP_MD");
-      }
+
+      EVP_MD const *md = EVP_get_digestbyname(digest);
+      if (md == NULL)
+        throw std::runtime_error("unknown digest");
 
       if (!X509_sign(x509, key, md))
         throw std::runtime_error("X509_sign");
