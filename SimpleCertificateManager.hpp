@@ -72,6 +72,24 @@ public:
     return privateKey;
   }
 
+  std::string getPrivateKeyPrint(int indent = 0) {
+    int ret;
+    BIO *bio = BIO_new(BIO_s_mem());
+
+    ret = EVP_PKEY_print_private(bio, key, indent, NULL);
+
+    int len = BIO_pending(bio);
+    if (len < 0)
+      throw std::runtime_error("BIO_pending");
+
+    char buf[len+1];
+    BIO_read(bio, buf, len);
+    BIO_free(bio);
+
+    return buf;
+  }
+
+
   std::string getPublicKeyString() {
     if (!publicKey.empty())
       return publicKey;
