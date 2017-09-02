@@ -130,7 +130,13 @@ public:
     // find out the digest algorithm
     EVP_MD const *md = NULL;
     int sig_nid = X509_get_signature_nid(ref_x509);
-    switch(sig_nid) {
+    switch(sig_nid) {                 // ooops. better way?
+      case NID_md4WithRSAEncryption:
+        md = EVP_md4();
+        break;
+      case NID_md5WithRSAEncryption:
+        md = EVP_md5();
+        break;
       case NID_sha1WithRSAEncryption:
         md = EVP_sha1();
         break;
