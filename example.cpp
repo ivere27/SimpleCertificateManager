@@ -71,10 +71,29 @@ int main() {
     cout << e.what();
   }
 
+  // create a new csr by existing certificate.
+  string otherRequest, otherCertificate;
+  try {
+    Key root = Key(rootPrivate.c_str());
+    root.loadCertificate(rootCertificate.c_str());
+
+    Key other = Key(2048);
+    otherRequest = other.getRequestByCertificate(certCertificate.c_str());
+
+    // signed by root. digest : sha512, serial : 2, days : 14
+    otherCertificate = root.signRequest(512, otherRequest.c_str(), "2", 14);
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
   // check by $ openssl x509 -in cert.crt -text -noout
-  // verify by $ openssl verify -CAfile root.crt cert.crt
+  // verify by $ openssl verify -CAfile root.crt cert.crt other.crt
   cout << rootCertificate << endl;
   cout << certCertificate << endl;
+  cout << otherCertificate << endl;
+
+  // check by $ openssl req -in other.csr -noout -text
+  cout << otherRequest <<endl;
 
   return 0;
 }

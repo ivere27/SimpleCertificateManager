@@ -48,7 +48,9 @@ public:
     privateKey = buf;
   }
   Key(const char* pri_key) {
-    int ret;
+    if (pri_key == nullptr)  // empty key.
+      return;
+
     this->privateKey = pri_key;
 
     pri_bio = BIO_new_mem_buf(pri_key, -1);
@@ -58,8 +60,7 @@ public:
     key = PEM_read_bio_PrivateKey(pri_bio, NULL, 0, NULL);
 
     rsa = EVP_PKEY_get1_RSA(key);
-    ret = RSA_check_key(rsa);
-    if (ret != 1)
+    if (!RSA_check_key(rsa))
       throw std::runtime_error("RSA_check_key");
   }
   ~Key() {
@@ -100,6 +101,70 @@ public:
       return request;
   }
 
+  // create a new csr from existing certificate
+  std::string getRequestByCertificate(const char* ref_crt_str) {
+    BIO* ref_crt_bio = BIO_new_mem_buf(ref_crt_str, -1);
+    X509* ref_x509 = PEM_read_bio_X509(ref_crt_bio, NULL, NULL, NULL);
+    BIO_free(ref_crt_bio);
+    if (ref_x509 == NULL)
+      throw std::runtime_error("PEM_read_bio_X509");
+
+
+    BIO *csr = BIO_new(BIO_s_mem());
+    X509_REQ *x509_req = X509_REQ_new();
+
+    if (!X509_REQ_set_version(x509_req, 0L))
+      throw std::runtime_error("X509_REQ_set_version");
+
+    X509_NAME *x509_name = X509_get_subject_name(ref_x509);
+    if (x509_name == NULL)
+      throw std::runtime_error("X509_get_subject_name");
+
+    if (!X509_REQ_set_subject_name(x509_req, x509_name))
+      throw std::runtime_error("X509_REQ_set_subject_name");
+
+    // set public key
+    if (!X509_REQ_set_pubkey(x509_req, key))
+      throw std::runtime_error("X509_REQ_set_pubkey");
+
+    // find out the digest algorithm
+    EVP_MD const *md = NULL;
+    int sig_nid = X509_get_signature_nid(ref_x509);
+    switch(sig_nid) {
+      case NID_sha1WithRSAEncryption:
+        md = EVP_sha1();
+        break;
+      case NID_sha224WithRSAEncryption:
+        md = EVP_sha224();
+        break;
+      case NID_sha256WithRSAEncryption:
+        md = EVP_sha256();
+        break;
+      case NID_sha512WithRSAEncryption:
+        md = EVP_sha512();
+        break;
+      default:
+        throw std::runtime_error("X509_get_signature_nid");
+    }
+
+    // set sign key
+    if (X509_REQ_sign(x509_req, key, md) <= 0)
+      throw std::runtime_error("X509_REQ_sign");
+
+    if (!PEM_write_bio_X509_REQ(csr, x509_req))
+      throw std::runtime_error("PEM_write_bio_X509_REQ");
+
+    int len = BIO_pending(csr);
+    if (len < 0)
+      throw std::runtime_error("BIO_pending");
+
+    char buf[len+1];
+    BIO_read(csr, buf, len);
+    BIO_free(csr);
+
+    return buf;
+  }
+
   void genRequest(int digest,
                   const char* countryName,
                   const char* stateOrProvinceName,
@@ -107,7 +172,6 @@ public:
                   const char* organizationName,
                   const char* organizationalUnitName,
                   const char* commonName) {
-    int ret;
     BIO *csr = BIO_new(BIO_s_mem());
     X509_REQ *x509_req = X509_REQ_new();
 
