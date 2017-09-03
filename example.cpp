@@ -20,15 +20,17 @@ int main() {
     const char* commonName = "www.example.com";
 
     key.genRequest(countryName,
-                    stateOrProvinceName,
-                    localityName,
-                    organizationName,
-                    organizationalUnitName,
-                    commonName,
-                    digest);
+                   stateOrProvinceName,
+                   localityName,
+                   organizationName,
+                   organizationalUnitName,
+                   commonName,
+                   digest);
     string request = key.getRequestString();
-
     cout << key.getRequestPrint() << endl;
+
+    key.signRequest(NULL, NULL, 365, digest);
+    cout << key.getCertificatePrint() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }

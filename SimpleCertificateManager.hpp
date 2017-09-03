@@ -300,13 +300,13 @@ public:
       }
 
       BIO* csr_bio = BIO_new_mem_buf(csr_str, -1);
-      X509_REQ* x509_req = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
-      if (x509_req == NULL)
+      X509_REQ* subject_x509_req = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
+      if (subject_x509_req == NULL)
         throw std::runtime_error("PEM_read_bio_X509_REQ");
 
 
-      X509* x509 = X509_new();
-      if (!X509_set_version(x509, 2))    // X509 v3
+      X509* subject_x509 = X509_new();
+      if (!X509_set_version(subject_x509, 2))    // X509 v3
         throw std::runtime_error("X509_set_version");
 
       ASN1_INTEGER *aserial = NULL;
@@ -318,52 +318,52 @@ public:
           throw std::runtime_error("s2i_ASN1_INTEGER");
       }
 
-      if (!X509_set_serialNumber(x509, aserial))
+      if (!X509_set_serialNumber(subject_x509, aserial))
         throw std::runtime_error("X509_set_serialNumber");
 
-      X509_NAME* name = X509_REQ_get_subject_name(x509_req);
-      if (!X509_set_subject_name(x509, name))
+      X509_NAME* name = X509_REQ_get_subject_name(subject_x509_req);
+      if (!X509_set_subject_name(subject_x509, name))
         throw std::runtime_error("X509_set_subject_name");
 
       if (isSelfSigned) { // issuer = subject
-        if (!X509_set_issuer_name(x509, name))
+        if (!X509_set_issuer_name(subject_x509, name))
           throw std::runtime_error("X509_set_issuer_name");
       } else {
-        X509_NAME* issuerName = X509_get_subject_name(x);
+        X509_NAME* issuerName = X509_get_subject_name(this->x509);
 
-        if (!X509_set_issuer_name(x509, issuerName))
+        if (!X509_set_issuer_name(subject_x509, issuerName))
           throw std::runtime_error("X509_set_issuer_name");
       }
 
-      EVP_PKEY *pktmp = X509_REQ_get0_pubkey(x509_req);
-      if (!X509_set_pubkey(x509, pktmp))
+      EVP_PKEY *pktmp = X509_REQ_get0_pubkey(subject_x509_req);
+      if (!X509_set_pubkey(subject_x509, pktmp))
         throw std::runtime_error("X509_set_pubkey");
 
-      ASN1_UTCTIME *startdate = X509_gmtime_adj(X509_get_notBefore(x509),0);
+      ASN1_UTCTIME *startdate = X509_gmtime_adj(X509_get_notBefore(subject_x509),0);
       if (startdate == NULL)
         throw std::runtime_error("X509_get_notBefore");
 
-      ASN1_UTCTIME *enddate = X509_time_adj_ex(X509_getm_notAfter(x509), days, 0, NULL);
+      ASN1_UTCTIME *enddate = X509_time_adj_ex(X509_getm_notAfter(subject_x509), days, 0, NULL);
       if (enddate == NULL)
         throw std::runtime_error("X509_getm_notAfter");
 
 
       X509V3_CTX ctx;
       if (isSelfSigned)
-        X509V3_set_ctx(&ctx, x509, x509, NULL, NULL, 0);
+        X509V3_set_ctx(&ctx, subject_x509, subject_x509, NULL, NULL, 0);
       else
-        X509V3_set_ctx(&ctx, x, x509, NULL, NULL, 0);
+        X509V3_set_ctx(&ctx, this->x509, subject_x509, NULL, NULL, 0);
 
 
       EVP_MD const *md = EVP_get_digestbyname(digest);
       if (md == NULL)
         throw std::runtime_error("unknown digest");
 
-      if (!X509_sign(x509, key, md))
+      if (!X509_sign(subject_x509, key, md))
         throw std::runtime_error("X509_sign");
 
       BIO *crt_bio = BIO_new(BIO_s_mem());
-      if (!PEM_write_bio_X509(crt_bio, x509))
+      if (!PEM_write_bio_X509(crt_bio, subject_x509))
         throw std::runtime_error("PEM_write_bio_X509");
 
       int len = BIO_pending(crt_bio);
@@ -374,7 +374,11 @@ public:
       BIO_read(crt_bio, buf, len);
       BIO_free(crt_bio);
 
-      this->x = x509;
+      if (isSelfSigned) {
+        X509_free(this->x509);
+        this->x509 = subject_x509;
+      }
+
       return buf;
   }
 
@@ -386,7 +390,26 @@ public:
     if (x509 == NULL)
       throw std::runtime_error("PEM_read_bio_X509");
 
-    this->x = x509;
+    X509_free(this->x509);
+    this->x509 = x509;
+  }
+
+  std::string getCertificatePrint() {
+    int ret;
+    BIO *bio = BIO_new(BIO_s_mem());
+
+    ret = X509_print(bio, this->x509);
+
+    int len = BIO_pending(bio);
+    if (len < 0)
+      throw std::runtime_error("BIO_pending");
+
+    char buf[len+1];
+    memset(buf, '\0', len+1);
+    BIO_read(bio, buf, len);
+    BIO_free(bio);
+
+    return buf;
   }
 
 private:
@@ -401,7 +424,7 @@ private:
   BIO* pub_bio = NULL;
   RSA* rsa  = NULL;
   BIGNUM* bn  = NULL;
-  X509* x = NULL;
+  X509* x509 = NULL;
   X509_REQ* x509_req = NULL;
 };
 
