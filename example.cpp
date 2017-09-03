@@ -5,6 +5,17 @@ using namespace std;
 using namespace certificate;
 
 int main() {
+#ifdef TEST_KEY_PRINT
+  try {
+    Key key = Key(2048);                           // 2048 bit
+    cout << key.getPublicKeyPrint() << endl;
+    cout << key.getPrivateKeyPrint() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+  return 0;
+#endif
+
   string rootPrivate, rootPublic, rootRequest, rootCertificate;
 
   // generate new root certificate
