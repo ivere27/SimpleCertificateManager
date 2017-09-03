@@ -20,7 +20,8 @@ using namespace std;
 class Key {
 public:
   Key(int kbits = 2048) { // FIXME : support passphrase
-    this->kbits = kbits;
+    if (kbits == 0)  // empty key.
+        return;
 
     rsa = RSA_new();
     bn = BN_new();
@@ -46,13 +47,12 @@ public:
     char buf[len+1];
     BIO_read(pri_bio, buf, len);
 
-    privateKey = buf;
+    this->kbits = kbits;
+    this->privateKey = buf;
   }
   Key(const char* pri_key) {
     if (pri_key == nullptr)  // empty key.
       return;
-
-    this->privateKey = pri_key;
 
     pri_bio = BIO_new_mem_buf(pri_key, -1);
     if (!pri_bio)
@@ -63,12 +63,16 @@ public:
     rsa = EVP_PKEY_get1_RSA(key);
     if (!RSA_check_key(rsa))
       throw std::runtime_error("RSA_check_key");
+
+    this->privateKey = pri_key;
+    this->kbits =  RSA_bits(rsa);
   }
   ~Key() {
     BIO_free(pri_bio);
     BIO_free(pub_bio);
     EVP_PKEY_free(key);
     X509_REQ_free(x509_req);
+    BN_free(bn);
   }
 
   std::string getPrivateKeyString() {
@@ -419,7 +423,7 @@ private:
   std::string request;
   std::string certificate;
 
-  int kbits = 2048;
+  int kbits = 0;
   BIO* pri_bio  = NULL;
   BIO* pub_bio = NULL;
   RSA* rsa  = NULL;
