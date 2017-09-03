@@ -7,8 +7,9 @@
 // #define SIMPLE_CERTIFICATE_MANAGER_VERSION_PATCH 0
 
 #include <cassert>
-#include <string>
+#include <cstring>
 #include <iostream>
+#include <string>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
