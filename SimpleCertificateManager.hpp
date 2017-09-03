@@ -24,8 +24,8 @@ public:
     if (kbits == 0)  // empty key.
         return;
 
-    rsa = RSA_new();
-    bn = BN_new();
+    RSA* rsa = RSA_new();
+    BIGNUM* bn = BN_new();
     if (BN_set_word(bn, RSA_F4) != 1)
       throw std::runtime_error("BN_set_word");
 
@@ -48,6 +48,8 @@ public:
     char buf[len+1];
     BIO_read(pri_bio, buf, len);
 
+    BN_free(bn);
+
     this->kbits = kbits;
     this->privateKey = buf;
   }
@@ -61,7 +63,7 @@ public:
 
     key = PEM_read_bio_PrivateKey(pri_bio, NULL, 0, NULL);
 
-    rsa = EVP_PKEY_get1_RSA(key);
+    RSA* rsa = EVP_PKEY_get0_RSA(key);
     if (!RSA_check_key(rsa))
       throw std::runtime_error("RSA_check_key");
 
@@ -72,8 +74,8 @@ public:
     BIO_free(pri_bio);
     BIO_free(pub_bio);
     EVP_PKEY_free(key);
+    X509_free(x509);
     X509_REQ_free(x509_req);
-    BN_free(bn);
   }
 
   std::string getPrivateKeyString() {
@@ -107,6 +109,8 @@ public:
       pub_bio = BIO_new(BIO_s_mem());
       if (pub_bio == NULL)
         throw std::runtime_error("BIO_new");
+
+      RSA* rsa = EVP_PKEY_get0_RSA(key);
 
       if (!PEM_write_bio_RSA_PUBKEY(pub_bio, rsa))
         throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
@@ -427,8 +431,6 @@ private:
   int kbits = 0;
   BIO* pri_bio  = NULL;
   BIO* pub_bio = NULL;
-  RSA* rsa  = NULL;
-  BIGNUM* bn  = NULL;
   X509* x509 = NULL;
   X509_REQ* x509_req = NULL;
 };

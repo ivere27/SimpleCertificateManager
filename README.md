@@ -8,13 +8,13 @@ build openssl as shared library
 
 * linux
 ```bash
-g++ -std=c++11 -g -m32 example.cpp libcrypto.so -Wl,-rpath,. -I../openssl/include \
+g++ -std=c++11 -g example.cpp libcrypto.so -Wl,-rpath,. -I../openssl/include \
 && ./a.out
 ```
 
 * mac
 ```bash
-clang++ -std=c++11 -m32 example.cpp libcrypto.dylib -I../openssl/include -Wl,-rpath,. \
+clang++ -std=c++11 -g example.cpp libcrypto.dylib -I../openssl/include -Wl,-rpath,. \
 && install_name_tool -change /usr/local/lib/libcrypto.1.1.dylib libcrypto.dylib a.out \
 && ./a.out
 ```
