@@ -8,8 +8,27 @@ int main() {
 #ifdef TEST_KEY_PRINT
   try {
     Key key = Key(2048);                           // 2048 bit
-    cout << key.getPublicKeyPrint() << endl;
     cout << key.getPrivateKeyPrint() << endl;
+    cout << key.getPublicKeyPrint() << endl;
+
+    const char* digest = "sha256";                  // sha256
+    const char* countryName = "US";                 // 2 chars
+    const char* stateOrProvinceName = "ROOT-ST";
+    const char* localityName = "ROOT-L";
+    const char* organizationName = "ROOT-O";
+    const char* organizationalUnitName   = "ROOT-OU";
+    const char* commonName = "www.example.com";
+
+    key.genRequest(countryName,
+                    stateOrProvinceName,
+                    localityName,
+                    organizationName,
+                    organizationalUnitName,
+                    commonName,
+                    digest);
+    string request = key.getRequestString();
+
+    cout << key.getRequestPrint() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }

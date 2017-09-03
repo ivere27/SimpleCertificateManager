@@ -6,6 +6,7 @@
 // #define SIMPLE_CERTIFICATE_MANAGER_VERSION_MINOR 1
 // #define SIMPLE_CERTIFICATE_MANAGER_VERSION_PATCH 0
 
+#include <cassert>
 #include <string>
 #include <iostream>
 #include <openssl/rsa.h>
@@ -66,6 +67,8 @@ public:
   ~Key() {
     BIO_free(pri_bio);
     BIO_free(pub_bio);
+    EVP_PKEY_free(key);
+    X509_REQ_free(x509_req);
   }
 
   std::string getPrivateKeyString() {
@@ -83,6 +86,7 @@ public:
       throw std::runtime_error("BIO_pending");
 
     char buf[len+1];
+    memset(buf, '\0', len+1);
     BIO_read(bio, buf, len);
     BIO_free(bio);
 
@@ -144,22 +148,22 @@ public:
     if (ref_x509 == NULL)
       throw std::runtime_error("PEM_read_bio_X509");
 
-
     BIO *csr = BIO_new(BIO_s_mem());
-    X509_REQ *x509_req = X509_REQ_new();
 
-    if (!X509_REQ_set_version(x509_req, 0L))
+    X509_REQ* new_x509_req = X509_REQ_new();
+
+    if (!X509_REQ_set_version(new_x509_req, 0L))
       throw std::runtime_error("X509_REQ_set_version");
 
     X509_NAME *x509_name = X509_get_subject_name(ref_x509);
     if (x509_name == NULL)
       throw std::runtime_error("X509_get_subject_name");
 
-    if (!X509_REQ_set_subject_name(x509_req, x509_name))
+    if (!X509_REQ_set_subject_name(new_x509_req, x509_name))
       throw std::runtime_error("X509_REQ_set_subject_name");
 
     // set public key
-    if (!X509_REQ_set_pubkey(x509_req, key))
+    if (!X509_REQ_set_pubkey(new_x509_req, key))
       throw std::runtime_error("X509_REQ_set_pubkey");
 
     // find out the digest algorithm
@@ -189,10 +193,10 @@ public:
     }
 
     // set sign key
-    if (X509_REQ_sign(x509_req, key, md) <= 0)
+    if (X509_REQ_sign(new_x509_req, key, md) <= 0)
       throw std::runtime_error("X509_REQ_sign");
 
-    if (!PEM_write_bio_X509_REQ(csr, x509_req))
+    if (!PEM_write_bio_X509_REQ(csr, new_x509_req))
       throw std::runtime_error("PEM_write_bio_X509_REQ");
 
     int len = BIO_pending(csr);
@@ -202,6 +206,9 @@ public:
     char buf[len+1];
     BIO_read(csr, buf, len);
     BIO_free(csr);
+
+    X509_REQ_free(x509_req);
+    x509_req = new_x509_req;
 
     return buf;
   }
@@ -214,13 +221,14 @@ public:
                   const char* commonName,
                   const char* digest = "sha1") {
     BIO *csr = BIO_new(BIO_s_mem());
-    X509_REQ *x509_req = X509_REQ_new();
+
+    X509_REQ* new_x509_req = X509_REQ_new();
 
     // https://tools.ietf.org/html/rfc2986
-    if (!X509_REQ_set_version(x509_req, 0L))
+    if (!X509_REQ_set_version(new_x509_req, 0L))
       throw std::runtime_error("X509_REQ_set_version");
 
-    X509_NAME *x509_name = X509_REQ_get_subject_name(x509_req);
+    X509_NAME *x509_name = X509_REQ_get_subject_name(new_x509_req);
     if (!X509_NAME_add_entry_by_txt(x509_name,"C", MBSTRING_ASC, (const unsigned char*)countryName, -1, -1, 0))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - C");
     if (!X509_NAME_add_entry_by_txt(x509_name,"ST", MBSTRING_ASC, (const unsigned char*)stateOrProvinceName, -1, -1, 0))
@@ -235,7 +243,7 @@ public:
       throw std::runtime_error("X509_NAME_add_entry_by_txt - CN");
 
     // set public key
-    if (!X509_REQ_set_pubkey(x509_req, key))
+    if (!X509_REQ_set_pubkey(new_x509_req, key))
       throw std::runtime_error("X509_REQ_set_pubkey");
 
     EVP_MD const *md = EVP_get_digestbyname(digest);
@@ -243,10 +251,10 @@ public:
       throw std::runtime_error("unknown digest");
 
     // set sign key
-    if (X509_REQ_sign(x509_req, key, md) <= 0)
+    if (X509_REQ_sign(new_x509_req, key, md) <= 0)
       throw std::runtime_error("X509_REQ_sign");
 
-    if (!PEM_write_bio_X509_REQ(csr, x509_req))
+    if (!PEM_write_bio_X509_REQ(csr, new_x509_req))
       throw std::runtime_error("PEM_write_bio_X509_REQ");
 
 
@@ -258,7 +266,28 @@ public:
     BIO_read(csr, buf, len);
     BIO_free(csr);
 
+    X509_REQ_free(x509_req);
+    x509_req = new_x509_req;
+
     this->request = buf;
+  }
+
+  std::string getRequestPrint() {
+    int ret;
+    BIO *bio = BIO_new(BIO_s_mem());
+
+    ret = X509_REQ_print(bio, x509_req);
+
+    int len = BIO_pending(bio);
+    if (len < 0)
+      throw std::runtime_error("BIO_pending");
+
+    char buf[len+1];
+    memset(buf, '\0', len+1);
+    BIO_read(bio, buf, len);
+    BIO_free(bio);
+
+    return buf;
   }
 
   string signRequest(const char* csr_str = NULL,
@@ -368,11 +397,12 @@ private:
   std::string certificate;
 
   int kbits = 2048;
-  BIO *pri_bio  = NULL;
-  BIO *pub_bio = NULL;
-  RSA *rsa  = NULL;
-  BIGNUM *bn  = NULL;
+  BIO* pri_bio  = NULL;
+  BIO* pub_bio = NULL;
+  RSA* rsa  = NULL;
+  BIGNUM* bn  = NULL;
   X509* x = NULL;
+  X509_REQ* x509_req = NULL;
 };
 
 } // namespace certificate
