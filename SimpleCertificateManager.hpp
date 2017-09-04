@@ -428,6 +428,10 @@ public:
     return buf;
   }
 
+  int length() {
+      return this->kbits;
+  }
+
 private:
   EVP_PKEY *key  = NULL;
   std::string privateKey;
