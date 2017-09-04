@@ -37,6 +37,21 @@ int main() {
   return 0;
 #endif
 
+#ifdef TEST_LOAD_PUBLIC_KEY
+  try {
+    Key key = Key(2048);                           // 2048 bit
+    cout << key.getPublicKeyPrint() << endl;
+
+    Key test = Key(nullptr);
+    test.loadPublicKey(key.getPublicKeyString().c_str());
+    cout << test.getPublicKeyPrint() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+  return 0;
+#endif
+
+
   string rootPrivate, rootPublic, rootRequest, rootCertificate;
 
   // generate new root certificate

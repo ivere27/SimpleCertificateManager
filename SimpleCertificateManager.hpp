@@ -25,6 +25,9 @@ public:
     if (kbits == 0)  // empty key.
         return;
 
+    if (key != NULL)
+      throw std::runtime_error("the key is set");
+
     RSA* rsa = RSA_new();
     BIGNUM* bn = BN_new();
     if (BN_set_word(bn, RSA_F4) != 1)
@@ -58,6 +61,9 @@ public:
   Key(const char* pri_key) {
     if (pri_key == nullptr)  // empty key.
       return;
+
+    if (key != NULL)
+      throw std::runtime_error("the key is set");
 
     pri_bio = BIO_new_mem_buf(pri_key, -1);
     if (!pri_bio)
@@ -103,6 +109,21 @@ public:
     return buf;
   }
 
+  // load PublickKey by given pub_str
+  void loadPublicKey(const char* pub_key) {
+    if (key != NULL)
+      throw std::runtime_error("the key is set");
+
+    pub_bio = BIO_new_mem_buf(pub_key, -1);
+    if (!pub_bio)
+      throw std::runtime_error("BIO_new_mem_buf");
+
+    key = PEM_read_bio_PUBKEY(pub_bio, NULL,
+                              NULL,
+                              0);
+    if (key == NULL)
+      throw std::runtime_error("PEM_read_bio_PUBKEY");
+  }
 
   std::string getPublicKeyString() {
     if (!publicKey.empty())
