@@ -47,6 +47,7 @@ public:
       throw std::runtime_error("BIO_pending");
 
     char buf[len+1];
+    memset(buf, '\0', len+1);
     BIO_read(pri_bio, buf, len);
 
     BN_free(bn);
@@ -62,7 +63,8 @@ public:
     if (!pri_bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    key = PEM_read_bio_PrivateKey(pri_bio, NULL, 0, NULL);
+    if ((key = PEM_read_bio_PrivateKey(pri_bio, NULL, 0, NULL)) == NULL)
+        throw std::runtime_error("PEM_read_bio_PrivateKey");;
 
     RSA* rsa = EVP_PKEY_get0_RSA(key);
     if (!RSA_check_key(rsa))
@@ -122,6 +124,7 @@ public:
         throw std::runtime_error("BIO_pending");
 
     char buf[len+1];
+    memset(buf, '\0', len+1);
     BIO_read(pub_bio, buf, len);
     publicKey = buf;
 
@@ -139,6 +142,7 @@ public:
       throw std::runtime_error("BIO_pending");
 
     char buf[len+1];
+    memset(buf, '\0', len+1);
     BIO_read(bio, buf, len);
     BIO_free(bio);
 
@@ -273,6 +277,7 @@ public:
       throw std::runtime_error("BIO_pending");
 
     char buf[len+1];
+    memset(buf, '\0', len+1);
     BIO_read(csr, buf, len);
     BIO_free(csr);
 
@@ -381,6 +386,7 @@ public:
         throw std::runtime_error("BIO_pending");
 
       char buf[len+1];
+      memset(buf, '\0', len+1);
       BIO_read(crt_bio, buf, len);
       BIO_free(crt_bio);
 
