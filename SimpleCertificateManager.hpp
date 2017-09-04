@@ -10,6 +10,7 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <stdexcept>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
