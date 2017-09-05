@@ -51,6 +51,43 @@ int main() {
   return 0;
 #endif
 
+#ifdef TEST_LOAD_REQUEST
+  try {
+    string rootPrivate, rootPublic, rootRequest, rootCertificate;
+
+    Key root = Key(512);
+    rootPrivate = root.getPrivateKeyString();
+    rootPublic = root.getPublicKeyString();
+
+    const char* digest = "sha256";
+    const char* countryName = "US";
+    const char* stateOrProvinceName = "ROOT-ST";
+    const char* localityName = "ROOT-L";
+    const char* organizationName = "ROOT-O";
+    const char* organizationalUnitName   = "ROOT-OU";
+    const char* commonName = "www.example.com";
+
+    root.genRequest(countryName,
+                    stateOrProvinceName,
+                    localityName,
+                    organizationName,
+                    organizationalUnitName,
+                    commonName,
+                    digest);
+    rootRequest = root.getRequestString();
+    cout << root.getRequestPrint() << endl;
+
+    Key key2 = Key(rootPrivate.c_str());
+    key2.loadRequest(rootRequest.c_str());
+
+    cout << key2.getRequestPrint() << endl;
+
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
+  return 0;
+#endif
 
   string rootPrivate, rootPublic, rootRequest, rootCertificate;
 

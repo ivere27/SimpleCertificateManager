@@ -109,7 +109,7 @@ public:
     return buf;
   }
 
-  // load PublickKey by given pub_str
+  // load PublicKey by given pub_str
   void loadPublicKey(const char* pub_key) {
     if (key != NULL)
       throw std::runtime_error("the key is set");
@@ -248,6 +248,62 @@ public:
     return buf;
   }
 
+  // load PublicKey by given csr_str
+  void loadRequest(const char* csr_str) {
+    BIO* csr_bio = BIO_new_mem_buf(csr_str, -1);
+    X509_REQ* subject_x509_req = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
+    if (subject_x509_req == NULL)
+      throw std::runtime_error("PEM_read_bio_X509_REQ");
+    BIO_free(csr_bio);
+
+    EVP_PKEY *pktmp = X509_REQ_get0_pubkey(subject_x509_req);
+    if (pktmp == NULL)
+      throw std::runtime_error("X509_REQ_get0_pubkey");
+
+    // verify the given csr
+    if (X509_REQ_verify(subject_x509_req, pktmp) <= 0)
+      throw std::runtime_error("X509_REQ_verify");
+
+    // get modulus
+    const BIGNUM *ntmp;
+    RSA_get0_key(EVP_PKEY_get0_RSA(pktmp), &ntmp, NULL, NULL);
+
+
+    // get original modulus
+    const BIGNUM *n;
+    RSA* rsa = EVP_PKEY_get0_RSA(key);
+    RSA_get0_key(rsa, &n, NULL, NULL);
+
+
+    // check
+    char* ntmp_hex = BN_bn2hex(ntmp);
+    char* n_hex = BN_bn2hex(n);
+    if (strcmp(ntmp_hex, n_hex) != 0)
+      throw std::runtime_error("verify failed");
+
+
+    // store(overwrite) it.
+    BIO *csr = BIO_new(BIO_s_mem());
+    if (!PEM_write_bio_X509_REQ(csr, subject_x509_req))
+      throw std::runtime_error("PEM_write_bio_X509_REQ");
+
+
+    int len = BIO_pending(csr);
+    if (len < 0)
+      throw std::runtime_error("BIO_pending");
+
+    char buf[len+1];
+    memset(buf, '\0', len+1);
+    BIO_read(csr, buf, len);
+    BIO_free(csr);
+
+
+    this->request = buf;
+
+    X509_REQ_free(x509_req);
+    this->x509_req = subject_x509_req;
+  }
+
   void genRequest(const char* countryName,
                   const char* stateOrProvinceName,
                   const char* localityName,
@@ -330,9 +386,13 @@ public:
                      const char* serial = NULL,
                      int days = 365,
                      const char* digest = "sha1") {       // default sha1
-      bool isSelfSigned = (csr_str == NULL);
-      if (csr_str == NULL) {  // self-signed
+      bool isSelfSigned = false;
+      if (csr_str == NULL) { // self-signed
+        isSelfSigned = true;
         csr_str = this->request.c_str();
+      } else {
+        if (strcmp(csr_str, this->request.c_str()) == 0)
+          isSelfSigned = true;
       }
 
       BIO* csr_bio = BIO_new_mem_buf(csr_str, -1);
