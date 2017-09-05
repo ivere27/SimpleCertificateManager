@@ -509,6 +509,28 @@ public:
     return buf;
   }
 
+  // X509v3 Authority/Subject Key Identifier
+  std::string getCertificateKeyIdentifier() {
+    if (x509 == NULL)
+      throw std::runtime_error("x509 is null");
+
+    X509_PUBKEY *pubkey;
+    const unsigned char *pk;
+    int pklen;
+    unsigned char pkey_dig[EVP_MAX_MD_SIZE];
+    unsigned int diglen;
+
+    pubkey = X509_get_X509_PUBKEY(x509);
+
+    if (!X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, pubkey))
+      throw std::runtime_error("X509_PUBKEY_get0_param");
+
+    if (!EVP_Digest(pk, pklen, pkey_dig, &diglen, EVP_sha1(), NULL))
+      throw std::runtime_error("EVP_Digest");
+
+    return OPENSSL_buf2hexstr(pkey_dig, diglen);
+  }
+
   int length() {
       return this->kbits;
   }

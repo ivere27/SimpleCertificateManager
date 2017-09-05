@@ -1,10 +1,35 @@
 #include <iostream>
+#include <fstream>
+#include <vector>
 #include "SimpleCertificateManager.hpp"
 
 using namespace std;
 using namespace certificate;
 
 int main() {
+
+#ifdef TEST_CERTIFICATE_KEY_IDENTIFIER
+  try {
+    ifstream file("test.crt", ios::binary | ios::ate);
+    streamsize size = file.tellg();
+    file.seekg(0, ios::beg);
+
+    vector<char> buffer(size);
+    if (file.read(buffer.data(), size))
+    {
+      // cout<<buffer.data();
+      Key key = Key(nullptr);
+      key.loadCertificate(buffer.data());
+      cout << key.getCertificatePrint() << endl;
+      cout << key.getCertificateKeyIdentifier() << endl;
+    }
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
+  return 0;
+#endif // TEST_CERTIFICATE_KEY_IDENTIFIER
+
 #ifdef TEST_KEY_PRINT
   try {
     Key key = Key(2048);                           // 2048 bit
