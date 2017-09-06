@@ -14,6 +14,7 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
 namespace certificate {
@@ -541,6 +542,28 @@ public:
     return OPENSSL_buf2hexstr(pkey_dig, diglen);
   }
 
+  std::string getCertificateIdentifier() {
+    if (x509 == NULL)
+      throw std::runtime_error("x509 is null");
+
+    unsigned char md[SHA_DIGEST_LENGTH];
+    if (!X509_digest(x509, EVP_sha1(), md, NULL))
+      throw std::runtime_error("X509_pubkey_digest");
+
+    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+  }
+
+  std::string getRequestIdentifier() {
+    if (x509_req == NULL)
+      throw std::runtime_error("x509 is null");
+
+    unsigned char md[SHA_DIGEST_LENGTH];
+    if (!X509_REQ_digest(x509_req, EVP_sha1(), md, NULL))
+      throw std::runtime_error("X509_pubkey_digest");
+
+    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+  }
+
   // X509v3 Authority/Subject Key Identifier
   std::string getCertificateKeyIdentifier() {
     if (x509 == NULL)
@@ -548,17 +571,6 @@ public:
 
     unsigned char md[SHA_DIGEST_LENGTH];
     if (!X509_pubkey_digest(x509, EVP_sha1(), md, NULL))
-      throw std::runtime_error("X509_pubkey_digest");
-
-    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
-  }
-
-  std::string getRequestKeyIdentifier() {
-    if (x509_req == NULL)
-      throw std::runtime_error("x509 is null");
-
-    unsigned char md[SHA_DIGEST_LENGTH];
-    if (!X509_REQ_pubkey_digest(x509_req, EVP_sha1(), md, NULL))
       throw std::runtime_error("X509_pubkey_digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
