@@ -4,7 +4,8 @@
 * a single header file(c++ 11)
 
 ## build example
-build openssl as shared library
+build openssl as shared library 
+(ex, debug build : ```./config -d shared && make```)
 
 * linux
 ```bash
