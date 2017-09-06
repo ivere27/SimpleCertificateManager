@@ -546,21 +546,22 @@ public:
     if (x509 == NULL)
       throw std::runtime_error("x509 is null");
 
-    X509_PUBKEY *pubkey;
-    const unsigned char *pk;
-    int pklen;
-    unsigned char pkey_dig[EVP_MAX_MD_SIZE];
-    unsigned int diglen;
+    unsigned char md[SHA_DIGEST_LENGTH];
+    if (!X509_pubkey_digest(x509, EVP_sha1(), md, NULL))
+      throw std::runtime_error("X509_pubkey_digest");
 
-    pubkey = X509_get_X509_PUBKEY(x509);
+    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+  }
 
-    if (!X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, pubkey))
-      throw std::runtime_error("X509_PUBKEY_get0_param");
+  std::string getRequestKeyIdentifier() {
+    if (x509_req == NULL)
+      throw std::runtime_error("x509 is null");
 
-    if (!EVP_Digest(pk, pklen, pkey_dig, &diglen, EVP_sha1(), NULL))
-      throw std::runtime_error("EVP_Digest");
+    unsigned char md[SHA_DIGEST_LENGTH];
+    if (!X509_REQ_pubkey_digest(x509_req, EVP_sha1(), md, NULL))
+      throw std::runtime_error("X509_pubkey_digest");
 
-    return OPENSSL_buf2hexstr(pkey_dig, diglen);
+    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
   }
 
   int length() {
