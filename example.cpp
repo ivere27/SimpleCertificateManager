@@ -75,6 +75,7 @@ int main() {
     const char* organizationName = "ROOT-O";
     const char* organizationalUnitName   = "ROOT-OU";
     const char* commonName = "www.example.com";
+    const char* emailAddress = "dory@example.com";
 
     key.genRequest(countryName,
                    stateOrProvinceName,
@@ -82,11 +83,30 @@ int main() {
                    organizationName,
                    organizationalUnitName,
                    commonName,
+                   emailAddress,
                    digest);
     string request = key.getRequestString();
     cout << key.getRequestPrint() << endl;
 
     key.signRequest(NULL, NULL, 365, digest);
+    cout << key.getCertificatePrint() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+  return 0;
+#endif
+
+#ifdef TEST_EMPTY_SUBJECT_NAME
+  try {
+    Key key = Key(512);
+    cout << key.getPrivateKeyPrint() << endl;
+    cout << key.getPublicKeyPrint() << endl;
+
+    key.genRequest();
+    string request = key.getRequestString();
+    cout << key.getRequestPrint() << endl;
+
+    key.signRequest();
     cout << key.getCertificatePrint() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
@@ -123,6 +143,7 @@ int main() {
     const char* organizationName = "ROOT-O";
     const char* organizationalUnitName   = "ROOT-OU";
     const char* commonName = "www.example.com";
+    const char* emailAddress = "dory@example.com";
 
     root.genRequest(countryName,
                     stateOrProvinceName,
@@ -130,6 +151,7 @@ int main() {
                     organizationName,
                     organizationalUnitName,
                     commonName,
+                    emailAddress,
                     digest);
     rootRequest = root.getRequestString();
     cout << root.getRequestPrint() << endl;
@@ -161,6 +183,7 @@ int main() {
     const char* organizationName = "ROOT-O";
     const char* organizationalUnitName   = "ROOT-OU";
     const char* commonName = "www.example.com";
+    const char* emailAddress = "dory@example.com";
 
     root.genRequest(countryName,
                     stateOrProvinceName,
@@ -168,6 +191,7 @@ int main() {
                     organizationName,
                     organizationalUnitName,
                     commonName,
+                    emailAddress,
                     digest);
     rootRequest = root.getRequestString();
 
@@ -195,6 +219,7 @@ int main() {
     const char* organizationName = "CERT-O";
     const char* organizationalUnitName   = "CERT-OU";
     const char* commonName = "www.example.org";
+    const char* emailAddress = "dorydory@example.com";
 
     cert.genRequest(countryName,
                     stateOrProvinceName,
@@ -202,6 +227,7 @@ int main() {
                     organizationName,
                     organizationalUnitName,
                     commonName,
+                    emailAddress,
                     digest);
     certRequest = cert.getRequestString();
 

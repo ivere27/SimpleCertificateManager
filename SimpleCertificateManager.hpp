@@ -314,12 +314,13 @@ public:
     this->x509_req = subject_x509_req;
   }
 
-  void genRequest(const char* countryName,
-                  const char* stateOrProvinceName,
-                  const char* localityName,
-                  const char* organizationName,
-                  const char* organizationalUnitName,
-                  const char* commonName,
+  void genRequest(const char* countryName = NULL,
+                  const char* stateOrProvinceName = NULL,
+                  const char* localityName = NULL,
+                  const char* organizationName = NULL,
+                  const char* organizationalUnitName = NULL,
+                  const char* commonName = NULL,
+                  const char* emailAddress = NULL,
                   const char* digest = "sha1") {
     BIO *csr = BIO_new(BIO_s_mem());
 
@@ -330,17 +331,26 @@ public:
       throw std::runtime_error("X509_REQ_set_version");
 
     X509_NAME *x509_name = X509_REQ_get_subject_name(new_x509_req);
-    if (!X509_NAME_add_entry_by_txt(x509_name,"C", MBSTRING_ASC, (const unsigned char*)countryName, -1, -1, 0))
+    if ( countryName
+      && (!X509_NAME_add_entry_by_txt(x509_name,"C", MBSTRING_ASC, (const unsigned char*)countryName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - C");
-    if (!X509_NAME_add_entry_by_txt(x509_name,"ST", MBSTRING_ASC, (const unsigned char*)stateOrProvinceName, -1, -1, 0))
+    if ( stateOrProvinceName
+      && (!X509_NAME_add_entry_by_txt(x509_name,"ST", MBSTRING_ASC, (const unsigned char*)stateOrProvinceName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - ST");
-    if (!X509_NAME_add_entry_by_txt(x509_name,"L", MBSTRING_ASC, (const unsigned char*)localityName, -1, -1, 0))
+    if ( localityName
+      && (!X509_NAME_add_entry_by_txt(x509_name,"L", MBSTRING_ASC, (const unsigned char*)localityName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - L");
-    if (!X509_NAME_add_entry_by_txt(x509_name,"O", MBSTRING_ASC, (const unsigned char*)organizationName, -1, -1, 0))
+    if ( organizationName
+      && (!X509_NAME_add_entry_by_txt(x509_name,"O", MBSTRING_ASC, (const unsigned char*)organizationName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - O");
-    if (!X509_NAME_add_entry_by_txt(x509_name,"OU", MBSTRING_ASC, (const unsigned char*)organizationalUnitName, -1, -1, 0))
+    if ( organizationalUnitName
+      && (!X509_NAME_add_entry_by_txt(x509_name,"OU", MBSTRING_ASC, (const unsigned char*)organizationalUnitName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - OU");
-    if (!X509_NAME_add_entry_by_txt(x509_name,"CN", MBSTRING_ASC, (const unsigned char*)commonName, -1, -1, 0))
+    if ( commonName
+      && (!X509_NAME_add_entry_by_txt(x509_name,"CN", MBSTRING_ASC, (const unsigned char*)commonName, -1, -1, 0)))
+      throw std::runtime_error("X509_NAME_add_entry_by_txt - CN");
+    if ( emailAddress
+      && (!X509_NAME_add_entry_by_txt(x509_name,"emailAddress", MBSTRING_ASC, (const unsigned char*)emailAddress, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - CN");
 
     // set public key
