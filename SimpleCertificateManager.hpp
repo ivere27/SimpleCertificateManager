@@ -548,18 +548,18 @@ public:
 
     unsigned char md[SHA_DIGEST_LENGTH];
     if (!X509_digest(x509, EVP_sha1(), md, NULL))
-      throw std::runtime_error("X509_pubkey_digest");
+      throw std::runtime_error("X509_digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
   }
 
   std::string getRequestIdentifier() {
     if (x509_req == NULL)
-      throw std::runtime_error("x509 is null");
+      throw std::runtime_error("x509_req is null");
 
     unsigned char md[SHA_DIGEST_LENGTH];
     if (!X509_REQ_digest(x509_req, EVP_sha1(), md, NULL))
-      throw std::runtime_error("X509_pubkey_digest");
+      throw std::runtime_error("X509_REQ_digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
   }
