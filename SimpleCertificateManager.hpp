@@ -20,6 +20,164 @@
 namespace certificate {
 using namespace std;
 
+// OpenSSL_1_1_0f/apps/openssl.cnf
+const char* default_conf_str =
+"[ usr_cert ]\n"
+"\n"
+"# These extensions are added when 'ca' signs a request.\n"
+"\n"
+"# This goes against PKIX guidelines but some CAs do it and some software\n"
+"# requires this to avoid interpreting an end user certificate as a CA.\n"
+"\n"
+"basicConstraints=CA:FALSE\n"
+"\n"
+"# Here are some examples of the usage of nsCertType. If it is omitted\n"
+"# the certificate can be used for anything *except* object signing.\n"
+"\n"
+"# This is OK for an SSL server.\n"
+"# nsCertType      = server\n"
+"\n"
+"# For an object signing certificate this would be used.\n"
+"# nsCertType = objsign\n"
+"\n"
+"# For normal client use this is typical\n"
+"# nsCertType = client, email\n"
+"\n"
+"# and for everything including object signing:\n"
+"# nsCertType = client, email, objsign\n"
+"\n"
+"# This is typical in keyUsage for a client certificate.\n"
+"# keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n"
+"\n"
+"# This will be displayed in Netscape's comment listbox.\n"
+"nsComment     = \"OpenSSL Generated Certificate\"\n"
+"\n"
+"# PKIX recommendations harmless if included in all certificates.\n"
+"subjectKeyIdentifier=hash\n"
+"authorityKeyIdentifier=keyid,issuer\n"
+"\n"
+"# This stuff is for subjectAltName and issuerAltname.\n"
+"# Import the email address.\n"
+"# subjectAltName=email:copy\n"
+"# An alternative to produce certificates that aren't\n"
+"# deprecated according to PKIX.\n"
+"# subjectAltName=email:move\n"
+"\n"
+"# Copy subject details\n"
+"# issuerAltName=issuer:copy\n"
+"\n"
+"#nsCaRevocationUrl    = http://www.domain.dom/ca-crl.pem\n"
+"#nsBaseUrl\n"
+"#nsRevocationUrl\n"
+"#nsRenewalUrl\n"
+"#nsCaPolicyUrl\n"
+"#nsSslServerName\n"
+"\n"
+"# This is required for TSA certificates.\n"
+"# extendedKeyUsage = critical,timeStamping\n"
+"\n"
+"[ v3_req ]\n"
+"\n"
+"# Extensions to add to a certificate request\n"
+"\n"
+"basicConstraints = CA:FALSE\n"
+"keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n"
+"\n"
+"[ v3_ca ]\n"
+"\n"
+"\n"
+"# Extensions for a typical CA\n"
+"\n"
+"\n"
+"# PKIX recommendation.\n"
+"\n"
+"subjectKeyIdentifier=hash\n"
+"\n"
+"authorityKeyIdentifier=keyid:always,issuer\n"
+"\n"
+"basicConstraints = critical,CA:true\n"
+"\n"
+"# Key usage: this is typical for a CA certificate. However since it will\n"
+"# prevent it being used as an test self-signed certificate it is best\n"
+"# left out by default.\n"
+"# keyUsage = cRLSign, keyCertSign\n"
+"\n"
+"# Some might want this also\n"
+"# nsCertType = sslCA, emailCA\n"
+"\n"
+"# Include email address in subject alt name: another PKIX recommendation\n"
+"# subjectAltName=email:copy\n"
+"# Copy issuer details\n"
+"# issuerAltName=issuer:copy\n"
+"\n"
+"# DER hex encoding of an extension: beware experts only!\n"
+"# obj=DER:02:03\n"
+"# Where 'obj' is a standard or added object\n"
+"# You can even override a supported extension:\n"
+"# basicConstraints= critical, DER:30:03:01:01:FF\n"
+"\n"
+"[ crl_ext ]\n"
+"\n"
+"# CRL extensions.\n"
+"# Only issuerAltName and authorityKeyIdentifier make any sense in a CRL.\n"
+"\n"
+"# issuerAltName=issuer:copy\n"
+"authorityKeyIdentifier=keyid:always\n"
+"\n"
+"[ proxy_cert_ext ]\n"
+"# These extensions should be added when creating a proxy certificate\n"
+"\n"
+"# This goes against PKIX guidelines but some CAs do it and some software\n"
+"# requires this to avoid interpreting an end user certificate as a CA.\n"
+"\n"
+"basicConstraints=CA:FALSE\n"
+"\n"
+"# Here are some examples of the usage of nsCertType. If it is omitted\n"
+"# the certificate can be used for anything *except* object signing.\n"
+"\n"
+"# This is OK for an SSL server.\n"
+"# nsCertType      = server\n"
+"\n"
+"# For an object signing certificate this would be used.\n"
+"# nsCertType = objsign\n"
+"\n"
+"# For normal client use this is typical\n"
+"# nsCertType = client, email\n"
+"\n"
+"# and for everything including object signing:\n"
+"# nsCertType = client, email, objsign\n"
+"\n"
+"# This is typical in keyUsage for a client certificate.\n"
+"# keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n"
+"\n"
+"# This will be displayed in Netscape's comment listbox.\n"
+"nsComment     = \"OpenSSL Generated Certificate\"\n"
+"\n"
+"# PKIX recommendations harmless if included in all certificates.\n"
+"subjectKeyIdentifier=hash\n"
+"authorityKeyIdentifier=keyid,issuer\n"
+"\n"
+"# This stuff is for subjectAltName and issuerAltname.\n"
+"# Import the email address.\n"
+"# subjectAltName=email:copy\n"
+"# An alternative to produce certificates that aren't\n"
+"# deprecated according to PKIX.\n"
+"# subjectAltName=email:move\n"
+"\n"
+"# Copy subject details\n"
+"# issuerAltName=issuer:copy\n"
+"\n"
+"#nsCaRevocationUrl    = http://www.domain.dom/ca-crl.pem\n"
+"#nsBaseUrl\n"
+"#nsRevocationUrl\n"
+"#nsRenewalUrl\n"
+"#nsCaPolicyUrl\n"
+"#nsSslServerName\n"
+"\n"
+"# This really needs to be in place for it to be a proxy certificate.\n"
+"proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:3,policy:foo\n"
+;
+
 class Key {
 public:
   Key(int kbits = 2048) { // FIXME : support passphrase
@@ -464,11 +622,32 @@ public:
         throw std::runtime_error("X509_getm_notAfter");
 
 
+      // FIXME : work-around
       X509V3_CTX ctx;
-      if (isSelfSigned)
+      if (isSelfSigned) {
+        X509V3_set_ctx_test(&ctx);
+
+        BIO *in = BIO_new_mem_buf(default_conf_str, -1);
+        long errorline = -1;
+        CONF *conf;
+        int i;
+
+        conf = NCONF_new(NULL);
+        i = NCONF_load_bio(conf, in, &errorline);
+        if (i <= 0)
+          throw std::runtime_error("NCONF_load_bio");
+
+        X509V3_set_nconf(&ctx, conf);
         X509V3_set_ctx(&ctx, subject_x509, subject_x509, NULL, NULL, 0);
-      else
+
+        if (!X509V3_EXT_add_nconf(conf, &ctx, "v3_ca", subject_x509))
+          throw std::runtime_error("X509V3_EXT_add_nconf");
+
+        BIO_free(in);
+        NCONF_free(conf);
+      } else {
         X509V3_set_ctx(&ctx, this->x509, subject_x509, NULL, NULL, 0);
+      }
 
 
       EVP_MD const *md = EVP_get_digestbyname(digest);
