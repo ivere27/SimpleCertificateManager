@@ -46,6 +46,9 @@ public:
     key = EVP_PKEY_new();
     EVP_PKEY_assign_RSA(key, rsa);
 
+    if(!X509_PUBKEY_set(&pubkey, key))
+      throw std::runtime_error("X509_PUBKEY_set");
+
     int len = BIO_pending(pri_bio);
     if (len < 0)
       throw std::runtime_error("BIO_pending");
@@ -76,6 +79,9 @@ public:
     RSA* rsa = EVP_PKEY_get0_RSA(key);
     if (!RSA_check_key(rsa))
       throw std::runtime_error("RSA_check_key");
+
+    if(!X509_PUBKEY_set(&pubkey, key))
+      throw std::runtime_error("X509_PUBKEY_set");
 
     this->privateKey = pri_key;
     this->kbits =  RSA_bits(rsa);
@@ -298,6 +304,9 @@ public:
     BIO_read(csr, buf, len);
     BIO_free(csr);
 
+    // get pubkey from request
+    X509_PUBKEY_free(this->pubkey);
+    this->pubkey = X509_REQ_get_X509_PUBKEY(subject_x509_req);
 
     this->request = buf;
 
@@ -488,6 +497,9 @@ public:
     if (x509 == NULL)
       throw std::runtime_error("PEM_read_bio_X509");
 
+    X509_PUBKEY_free(this->pubkey);
+    this->pubkey = X509_get_X509_PUBKEY(x509);
+
     X509_free(this->x509);
     this->x509 = x509;
   }
@@ -564,7 +576,28 @@ public:
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
   }
 
+ // X509v3 Authority/Subject Key Identifier
+  std::string getPublicKeyIdentifier() {
+    if (pubkey == NULL)
+      throw std::runtime_error("pubkey is null");
+
+    const unsigned char *pk;
+    int pklen;
+    unsigned char pkey_dig[EVP_MAX_MD_SIZE];
+    unsigned int diglen;
+
+    if (!X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, pubkey))
+      throw std::runtime_error("X509_PUBKEY_get0_param");
+
+    unsigned char md[SHA_DIGEST_LENGTH];
+    if (!EVP_Digest(pk, pklen, md, NULL, EVP_sha1(), NULL))
+      throw std::runtime_error("EVP_Digest");
+
+    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+  }
+
   // X509v3 Authority/Subject Key Identifier
+  // getPublicKeyIdentifier = getCertificateKeyIdentifier
   std::string getCertificateKeyIdentifier() {
     if (x509 == NULL)
       throw std::runtime_error("x509 is null");
@@ -582,6 +615,7 @@ public:
 
 private:
   EVP_PKEY *key  = NULL;
+  X509_PUBKEY *pubkey = NULL;
   std::string privateKey;
   std::string publicKey;
   std::string request;

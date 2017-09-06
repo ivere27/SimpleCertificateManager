@@ -7,7 +7,6 @@ using namespace std;
 using namespace certificate;
 
 int main() {
-
 #ifdef TEST_PRIVATE_KEY_IDENTIFIER_FILE
   try {
     ifstream file("rootca.key", ios::binary | ios::ate);
@@ -54,6 +53,7 @@ int main() {
       key.loadCertificate(buffer.data());
       cout << key.getCertificatePrint() << endl;
       cout << key.getCertificateKeyIdentifier() << endl;
+      cout << key.getPublicKeyIdentifier() << endl;
     }
   } catch(std::exception const& e) {
     cout << e.what();
