@@ -509,6 +509,38 @@ public:
     return buf;
   }
 
+  std::string gerPrivateKeyIdentifier() {
+    if (this->key == NULL)
+      throw std::runtime_error("key is null");
+
+    BIO *bio = BIO_new(BIO_s_mem());
+    PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+
+    // Turn a private key into a PKCS8 structure
+    if ((p8inf = EVP_PKEY2PKCS8(key)) == NULL)
+      throw std::runtime_error("EVP_PKEY2PKCS8");
+
+    if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio, p8inf))
+      throw std::runtime_error("i2d_PKCS8_PRIV_KEY_INFO_bio");
+
+    int len = BIO_pending(bio);
+    if (len < 0)
+      throw std::runtime_error("BIO_pending");
+
+    char buf[len+1];
+    memset(buf, '\0', len+1);
+    BIO_read(bio, buf, len);
+    BIO_free(bio);
+
+    unsigned char pkey_dig[EVP_MAX_MD_SIZE];
+    unsigned int diglen;
+
+    if (!EVP_Digest(buf, len, pkey_dig, &diglen, EVP_sha1(), NULL))
+      throw std::runtime_error("EVP_Digest");
+
+    return OPENSSL_buf2hexstr(pkey_dig, diglen);
+  }
+
   // X509v3 Authority/Subject Key Identifier
   std::string getCertificateKeyIdentifier() {
     if (x509 == NULL)

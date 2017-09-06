@@ -8,6 +8,38 @@ using namespace certificate;
 
 int main() {
 
+#ifdef TEST_PRIVATE_KEY_IDENTIFIER_FILE
+  try {
+    ifstream file("rootca.key", ios::binary | ios::ate);
+    streamsize size = file.tellg();
+    file.seekg(0, ios::beg);
+
+    vector<char> buffer(size);
+    if (file.read(buffer.data(), size))
+    {
+      // cout<<buffer.data();
+      Key key = Key(buffer.data());
+      cout << key.gerPrivateKeyIdentifier() << endl;
+    }
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
+  return 0;
+#endif // TEST_PRIVATE_KEY_IDENTIFIER_FILE
+
+
+#ifdef TEST_PRIVATE_KEY_IDENTIFIER
+  // openssl pkcs8 -in rootca.key -inform PEM -outform DER -topk8 -nocrypt | openssl sha1 -c
+  try {
+    Key key = Key(2048);
+    cout << key.gerPrivateKeyIdentifier() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+  return 0;
+#endif
+
 #ifdef TEST_CERTIFICATE_KEY_IDENTIFIER
   try {
     ifstream file("test.crt", ios::binary | ios::ate);
