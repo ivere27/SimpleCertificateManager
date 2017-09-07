@@ -4,7 +4,9 @@
 * a single header file(c++ 11)
 
 ## how to use
-* new private/public key
+* new private/public key. the same as openssl command  
+`$ openssl genrsa -out rootca.key 2048`  
+`$ openssl rsa -in rootca.key -pubout > rootca.pub`
 ```c++
 try {
   Key key = Key(2048);    // bits
@@ -42,16 +44,24 @@ const char* pri_str =
 "...\n"
 "k85BK8CIl54Dft5l7+LD1ClaQo9ONTJGQPxKmU6aP+o4l2svCxRG0A==\n"
 "-----END RSA PRIVATE KEY-----\n";
-Key key = Key(pri_str);
+try {
+  Key key = Key(pri_str);
+  // ...
+} catch(std::exception const& e) {
+    cout << e.what();
+}
 ```
 
-* generate CSR && Root CA(self-signed)
+* generate CSR && Root CA(self-signed)  
+`$ openssl req -new -key rootca.key -out rootca.csr -subj "/C=US/ST=State/L=city/O=company/OU=section/CN=server FQDN or YOUR name/emailAddress=test@example.com"`  
+`$ openssl x509 -req -days 365 -extensions v3_ca -set_serial 0 -in rootca.csr -signkey rootca.key -out rootca.crt -sha512`
+
 ```c++
  try {
     Key root = Key(2048);
     string digest ="sha512";
 
-    // any field could be omitted.
+    // any field could be omitted(but check CA policy)
     string subject = "/C=US/ST=State/L=city"
                      "/O=company/OU=section"
                      "/CN=server FQDN or YOUR name"
@@ -92,6 +102,10 @@ Subject(=Authority in self-signed) Key Identifier : 03:C2:43:DF:A9:06:BE:DD:56:5
 ```
 
 * generate a certificate signed by ROOT CA
+`$ openssl genrsa -out cert.key 2048`  
+`$ openssl req -new -key cert.key -out cert.csr -subj "/C=US/CN=www.example.org" -sha256`  
+`$ openssl x509 -req -days 7 -in cert.csr -CA rootca.crt -set_serial 1 -CAkey rootca.key -out cert.crt -sha256`
+
 ```c++
   try {
     // load ROOT CA
@@ -114,7 +128,10 @@ Subject(=Authority in self-signed) Key Identifier : 03:C2:43:DF:A9:06:BE:DD:56:5
 ```
 
 
-* print private/public key in text
+* print private/public key in text  
+`$ openssl rsa -text -noout -in rootca.key`  
+`$ openssl rsa -text -noout-pubin -in rootca.pub`
+
 ```c++
 try {
   cout << key.getPrivateKeyPrint() << endl;
@@ -156,7 +173,10 @@ Modulus:
 Exponent: 65537 (0x10001)
 ```
 
-* print CSR/CRT in text
+* print CSR/CRT in text  
+`$ openssl req -text -noout -in cert.csr`  
+`$ openssl x509 -text -in cert.crt`  
+
 ```c++
 try {
   cout << key.getRequestPrint() << endl;
@@ -222,7 +242,7 @@ Certificate:
 ## build example.cpp
 build openssl as shared library 
 1. git clone openssl and checkout OpenSSL_1_1_0f
-2. debug build : ```$ ./config -d shared && make```
+2. build ```$ ./config shared && make```
 3. check libcrypto.so || libcrypto.so.1.1 in linux
    libcrypto.dylib || libcrypto.1.1.dylib in mac
 4. change PATHs to your one.
