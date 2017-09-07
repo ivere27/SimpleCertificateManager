@@ -470,25 +470,25 @@ public:
 
     X509_NAME *x509_name = X509_REQ_get_subject_name(new_x509_req);
     if ( countryName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"C", MBSTRING_ASC, (const unsigned char*)countryName, -1, -1, 0)))
+      && (!X509_NAME_add_entry_by_txt(x509_name,"C", this->chtype, (const unsigned char*)countryName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - C");
     if ( stateOrProvinceName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"ST", MBSTRING_ASC, (const unsigned char*)stateOrProvinceName, -1, -1, 0)))
+      && (!X509_NAME_add_entry_by_txt(x509_name,"ST", this->chtype, (const unsigned char*)stateOrProvinceName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - ST");
     if ( localityName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"L", MBSTRING_ASC, (const unsigned char*)localityName, -1, -1, 0)))
+      && (!X509_NAME_add_entry_by_txt(x509_name,"L", this->chtype, (const unsigned char*)localityName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - L");
     if ( organizationName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"O", MBSTRING_ASC, (const unsigned char*)organizationName, -1, -1, 0)))
+      && (!X509_NAME_add_entry_by_txt(x509_name,"O", this->chtype, (const unsigned char*)organizationName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - O");
     if ( organizationalUnitName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"OU", MBSTRING_ASC, (const unsigned char*)organizationalUnitName, -1, -1, 0)))
+      && (!X509_NAME_add_entry_by_txt(x509_name,"OU", this->chtype, (const unsigned char*)organizationalUnitName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - OU");
     if ( commonName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"CN", MBSTRING_ASC, (const unsigned char*)commonName, -1, -1, 0)))
+      && (!X509_NAME_add_entry_by_txt(x509_name,"CN", this->chtype, (const unsigned char*)commonName, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - CN");
     if ( emailAddress
-      && (!X509_NAME_add_entry_by_txt(x509_name,"emailAddress", MBSTRING_ASC, (const unsigned char*)emailAddress, -1, -1, 0)))
+      && (!X509_NAME_add_entry_by_txt(x509_name,"emailAddress", this->chtype, (const unsigned char*)emailAddress, -1, -1, 0)))
       throw std::runtime_error("X509_NAME_add_entry_by_txt - CN");
 
     // set public key
@@ -766,6 +766,16 @@ public:
       return this->kbits;
   }
 
+  void setChtype(unsigned long chtype) {
+    if (   chtype == MBSTRING_UTF8
+        || chtype == MBSTRING_ASC
+        || chtype == MBSTRING_BMP
+        || chtype == MBSTRING_UNIV)
+      this->chtype = chtype;
+    else
+      throw std::runtime_error("unknown chtype");
+  }
+
 private:
   EVP_PKEY *key  = NULL;
   X509_PUBKEY *pubkey = NULL;
@@ -779,6 +789,8 @@ private:
   BIO* pub_bio = NULL;
   X509* x509 = NULL;
   X509_REQ* x509_req = NULL;
+
+  unsigned long chtype = MBSTRING_UTF8; // PKIX recommendation
 };
 
 } // namespace certificate

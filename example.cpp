@@ -182,7 +182,7 @@ int main() {
     const char* localityName = "ROOT-L";
     const char* organizationName = "ROOT-O";
     const char* organizationalUnitName   = "ROOT-OU";
-    const char* commonName = "www.example.com";
+    const char* commonName = "www.example.com - 한中に";
     const char* emailAddress = "dory@example.com";
 
     root.genRequest(countryName,
@@ -197,6 +197,8 @@ int main() {
 
     // ROOTCA(self-signed). csr: null, serial : 0, days : 365, digest : sha256
     rootCertificate = root.signRequest(NULL, NULL, 365, digest);
+    cout << root.getCertificatePrint() << endl;
+    cout << "Certificate Identifier : " << root.getCertificateIdentifier() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }
