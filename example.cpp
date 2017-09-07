@@ -90,7 +90,7 @@ int main() {
     string request = key.getRequestString();
     cout << key.getRequestPrint() << endl;
 
-    key.signRequest(NULL, NULL, 365, digest);
+    key.signRequest("", "", 365, digest);
     cout << key.getCertificatePrint() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
@@ -202,7 +202,7 @@ int main() {
     rootRequest = root.getRequestString();
 
     // ROOTCA(self-signed). csr: null, serial : 0, days : 365, digest : sha256
-    rootCertificate = root.signRequest(NULL, NULL, 365, digest);
+    rootCertificate = root.signRequest("", "", 365, digest);
     cout << root.getCertificatePrint() << endl;
     cout << "Certificate Identifier : " << root.getCertificateIdentifier() << endl;
   } catch(std::exception const& e) {
@@ -242,7 +242,7 @@ int main() {
     certRequest = cert.getRequestString();
 
     // signed by root. digest : sha512, serial : 1, days : 7
-    certCertificate = root.signRequest(certRequest.c_str(), "1", 7, digest);
+    certCertificate = root.signRequest(certRequest, "1", 7, digest);
 
   } catch(std::exception const& e) {
     cout << e.what();
@@ -258,7 +258,7 @@ int main() {
     otherRequest = other.getRequestByCertificate(certCertificate.c_str());
 
     // signed by root. digest : sha512, serial : 2, days : 14
-    otherCertificate = root.signRequest(otherRequest.c_str(), "2", 14, "sha512");
+    otherCertificate = root.signRequest(otherRequest, "2", 14, "sha512");
   } catch(std::exception const& e) {
     cout << e.what();
   }

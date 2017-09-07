@@ -192,7 +192,7 @@ static std::string bio2string(BIO* bio) {
 
 class Key {
 public:
-  Key(int kbits) { // FIXME : support passphrase
+  Key(const int kbits) { // FIXME : support passphrase
     if (kbits == 0)  // empty key.
         return;
 
@@ -224,7 +224,7 @@ public:
     this->kbits = kbits;
     this->privateKey = bio2string(pri_bio);
   }
-  Key(const string&& privateKey = "") {
+  Key(const string& privateKey = "") {
     if (privateKey.empty())  // empty key.
       return;
 
@@ -260,13 +260,13 @@ public:
     return privateKey;
   }
 
-  std::string getPrivateKeyPrint(int indent = 0) {
-    if (key == NULL)
+  std::string getPrivateKeyPrint(const int indent = 0) {
+    if (this->key == NULL)
       throw std::runtime_error("key is null");
 
     BIO *bio = BIO_new(BIO_s_mem());
 
-    if (!EVP_PKEY_print_private(bio, key, indent, NULL))
+    if (!EVP_PKEY_print_private(bio, this->key, indent, NULL))
       throw std::runtime_error("EVP_PKEY_print_private");
 
     string s = bio2string(bio);
@@ -276,7 +276,7 @@ public:
   }
 
   // load PublicKey by given pub_str
-  void loadPublicKey(const string&& publicKey) {
+  void loadPublicKey(const string& publicKey) {
     if (this->key != NULL)
       throw std::runtime_error("the key is set");
 
@@ -335,7 +335,7 @@ public:
   }
 
   // create a new csr from existing certificate
-  std::string getRequestByCertificate(const string&& refRequest) {
+  std::string getRequestByCertificate(const string& refRequest) {
     BIO* ref_crt_bio = BIO_new_mem_buf(refRequest.c_str(), -1);
     X509* ref_x509 = PEM_read_bio_X509(ref_crt_bio, NULL, NULL, NULL);
     BIO_free(ref_crt_bio);
@@ -403,7 +403,7 @@ public:
   }
 
   // load CSR by given PEM
-  void loadRequest(const string&& request) {
+  void loadRequest(const string& request) {
     BIO* csr_bio = BIO_new_mem_buf(request.c_str(), -1);
     X509_REQ* subject_x509_req = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
     if (subject_x509_req == NULL)
@@ -450,7 +450,7 @@ public:
   }
 
   void genRequest(string subject = "",
-                  const string&& digest = "sha1") {
+                  const string& digest = "sha1") {
     if (this->key == NULL)
       throw std::runtime_error("the key is null");
 
@@ -526,20 +526,22 @@ public:
     return s;
   }
 
-  string signRequest(string request = "",
-                     const string&& serial = "",
-                     int days = 365,
-                     const string digest = "sha1") {       // default sha1
+  string signRequest(const string& request = "",
+                     const string& serial = "",
+                     const int days = 365,
+                     const string& digest = "sha1") {       // default sha1
       bool isSelfSigned = false;
+      string csr;
       if (request.empty()) { // self-signed
+        csr = this->request;
         isSelfSigned = true;
-        request = this->request;
       } else {
-        if (request.compare(this->request) == 0)
+        csr = request;
+        if (csr.compare(this->request) == 0)
           isSelfSigned = true;
       }
 
-      BIO* csr_bio = BIO_new_mem_buf(request.c_str(), -1);
+      BIO* csr_bio = BIO_new_mem_buf(csr.c_str(), -1);
       X509_REQ* subject_x509_req = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
       if (subject_x509_req == NULL)
         throw std::runtime_error("PEM_read_bio_X509_REQ");
@@ -638,7 +640,7 @@ public:
       return s;
   }
 
-  void loadCertificate(const string&& certificate) {
+  void loadCertificate(const string& certificate) {
     if (certificate.empty())
       throw std::runtime_error("certificate is null");
 
