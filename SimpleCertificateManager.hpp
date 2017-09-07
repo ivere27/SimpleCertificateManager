@@ -178,6 +178,18 @@ const char* default_conf_str =
 "proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:3,policy:foo\n"
 ;
 
+static std::string bio2string(BIO* bio) {
+  int len = BIO_pending(bio);
+  if (len < 0)
+    throw std::runtime_error("BIO_pending");
+
+  char buf[len+1];
+  memset(buf, '\0', len+1);
+  BIO_read(bio, buf, len);
+
+  return buf;
+}
+
 class Key {
 public:
   Key(int kbits = 2048) { // FIXME : support passphrase
@@ -207,18 +219,10 @@ public:
     if(!X509_PUBKEY_set(&pubkey, key))
       throw std::runtime_error("X509_PUBKEY_set");
 
-    int len = BIO_pending(pri_bio);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(pri_bio, buf, len);
-
     BN_free(bn);
 
     this->kbits = kbits;
-    this->privateKey = buf;
+    this->privateKey = bio2string(pri_bio);
   }
   Key(const char* pri_key) {
     if (pri_key == nullptr)  // empty key.
@@ -305,38 +309,28 @@ public:
         throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
     }
 
-    int len = BIO_pending(pub_bio);
-    if (len < 0)
-        throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(pub_bio, buf, len);
-    publicKey = buf;
-
-    return publicKey;
+    return bio2string(pub_bio);
   }
 
   std::string getPublicKeyPrint(int indent = 0) {
-    int ret;
+    if (key == NULL)
+      throw std::runtime_error("the key is null");
+
     BIO *bio = BIO_new(BIO_s_mem());
+    if (!EVP_PKEY_print_public(bio, key, indent, NULL))
+      throw std::runtime_error("EVP_PKEY_print_public");
 
-    ret = EVP_PKEY_print_public(bio, key, indent, NULL);
-
-    int len = BIO_pending(bio);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(bio, buf, len);
+    string s = bio2string(bio);
     BIO_free(bio);
 
-    return buf;
+    return s;
   }
 
   // return CSR(Certificate Signing Request)
   std::string getRequestString() {
+      if (request.empty())
+        throw std::runtime_error("request is null");
+
       return request;
   }
 
@@ -399,18 +393,13 @@ public:
     if (!PEM_write_bio_X509_REQ(csr, new_x509_req))
       throw std::runtime_error("PEM_write_bio_X509_REQ");
 
-    int len = BIO_pending(csr);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    BIO_read(csr, buf, len);
+    string s = bio2string(csr);
     BIO_free(csr);
 
     X509_REQ_free(x509_req);
     x509_req = new_x509_req;
 
-    return buf;
+    return s;
   }
 
   // load PublicKey by given csr_str
@@ -452,21 +441,12 @@ public:
     if (!PEM_write_bio_X509_REQ(csr, subject_x509_req))
       throw std::runtime_error("PEM_write_bio_X509_REQ");
 
-
-    int len = BIO_pending(csr);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(csr, buf, len);
+    this->request = bio2string(csr);
     BIO_free(csr);
 
     // get pubkey from request
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_REQ_get_X509_PUBKEY(subject_x509_req);
-
-    this->request = buf;
 
     X509_REQ_free(x509_req);
     this->x509_req = subject_x509_req;
@@ -527,37 +507,27 @@ public:
       throw std::runtime_error("PEM_write_bio_X509_REQ");
 
 
-    int len = BIO_pending(csr);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(csr, buf, len);
+    string s = bio2string(csr);
     BIO_free(csr);
 
     X509_REQ_free(x509_req);
     x509_req = new_x509_req;
 
-    this->request = buf;
+    this->request = s;
   }
 
   std::string getRequestPrint() {
-    int ret;
+    if (x509_req == NULL)
+      throw std::runtime_error("request is null");
+
     BIO *bio = BIO_new(BIO_s_mem());
+    if (!X509_REQ_print(bio, x509_req))
+      throw std::runtime_error("X509_REQ_print");
 
-    ret = X509_REQ_print(bio, x509_req);
-
-    int len = BIO_pending(bio);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(bio, buf, len);
+    string s = bio2string(bio);
     BIO_free(bio);
 
-    return buf;
+    return s;
   }
 
   string signRequest(const char* csr_str = NULL,
@@ -661,13 +631,7 @@ public:
       if (!PEM_write_bio_X509(crt_bio, subject_x509))
         throw std::runtime_error("PEM_write_bio_X509");
 
-      int len = BIO_pending(crt_bio);
-      if (len < 0)
-        throw std::runtime_error("BIO_pending");
-
-      char buf[len+1];
-      memset(buf, '\0', len+1);
-      BIO_read(crt_bio, buf, len);
+      string s = bio2string(crt_bio);
       BIO_free(crt_bio);
 
       if (isSelfSigned) {
@@ -675,16 +639,20 @@ public:
         this->x509 = subject_x509;
       }
 
-      return buf;
+      return s;
   }
 
   void loadCertificate(const char* crt_str) {
-    this->certificate = crt_str;
+    if (crt_str == NULL)
+      throw std::runtime_error("crt_str is null");
+
     BIO* crt_bio = BIO_new_mem_buf(crt_str, -1);
     X509* x509 = PEM_read_bio_X509(crt_bio, NULL, NULL, NULL);
     BIO_free(crt_bio);
     if (x509 == NULL)
       throw std::runtime_error("PEM_read_bio_X509");
+
+    this->certificate = crt_str;
 
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_get_X509_PUBKEY(x509);
@@ -694,21 +662,17 @@ public:
   }
 
   std::string getCertificatePrint() {
-    int ret;
+    if (x509 == NULL)
+      throw std::runtime_error("certificate is null");
+
     BIO *bio = BIO_new(BIO_s_mem());
+    if (!X509_print(bio, this->x509))
+      throw std::runtime_error("X509_print");
 
-    ret = X509_print(bio, this->x509);
-
-    int len = BIO_pending(bio);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(bio, buf, len);
+    string s = bio2string(bio);
     BIO_free(bio);
 
-    return buf;
+    return s;
   }
 
   std::string gerPrivateKeyIdentifier() {
