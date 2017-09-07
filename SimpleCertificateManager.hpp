@@ -50,7 +50,7 @@ const char* default_conf_str =
 "# keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n"
 "\n"
 "# This will be displayed in Netscape's comment listbox.\n"
-"nsComment     = \"OpenSSL Generated Certificate\"\n"
+"#nsComment     = \"OpenSSL Generated Certificate\"\n"
 "\n"
 "# PKIX recommendations harmless if included in all certificates.\n"
 "subjectKeyIdentifier=hash\n"
@@ -151,7 +151,7 @@ const char* default_conf_str =
 "# keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n"
 "\n"
 "# This will be displayed in Netscape's comment listbox.\n"
-"nsComment     = \"OpenSSL Generated Certificate\"\n"
+"#nsComment     = \"OpenSSL Generated Certificate\"\n"
 "\n"
 "# PKIX recommendations harmless if included in all certificates.\n"
 "subjectKeyIdentifier=hash\n"
@@ -619,32 +619,33 @@ public:
         throw std::runtime_error("X509_getm_notAfter");
 
 
-      // FIXME : work-around
+      // FIXME : extension argument
       X509V3_CTX ctx;
+      X509V3_set_ctx_test(&ctx);
+
+      BIO *in = BIO_new_mem_buf(default_conf_str, -1);
+      long errorline = -1;
+      CONF *conf;
+      int i;
+
+      conf = NCONF_new(NULL);
+      i = NCONF_load_bio(conf, in, &errorline);
+      if (i <= 0)
+        throw std::runtime_error("NCONF_load_bio");
+
+      X509V3_set_nconf(&ctx, conf);
       if (isSelfSigned) {
-        X509V3_set_ctx_test(&ctx);
-
-        BIO *in = BIO_new_mem_buf(default_conf_str, -1);
-        long errorline = -1;
-        CONF *conf;
-        int i;
-
-        conf = NCONF_new(NULL);
-        i = NCONF_load_bio(conf, in, &errorline);
-        if (i <= 0)
-          throw std::runtime_error("NCONF_load_bio");
-
-        X509V3_set_nconf(&ctx, conf);
         X509V3_set_ctx(&ctx, subject_x509, subject_x509, NULL, NULL, 0);
-
         if (!X509V3_EXT_add_nconf(conf, &ctx, "v3_ca", subject_x509))
           throw std::runtime_error("X509V3_EXT_add_nconf");
-
-        BIO_free(in);
-        NCONF_free(conf);
       } else {
         X509V3_set_ctx(&ctx, this->x509, subject_x509, NULL, NULL, 0);
+        if (!X509V3_EXT_add_nconf(conf, &ctx, "usr_cert", subject_x509))
+          throw std::runtime_error("X509V3_EXT_add_nconf");
       }
+      BIO_free(in);
+      NCONF_free(conf);
+
 
       EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
       if (md == NULL)
