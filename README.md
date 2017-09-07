@@ -51,7 +51,7 @@ Key key = Key(pri_str);
     Key root = Key(2048);
     string digest ="sha512";
 
-    // any fields could be omitted.
+    // any field could be omitted.
     string subject = "/C=US/ST=State/L=city"
                      "/O=company/OU=section"
                      "/CN=server FQDN or YOUR name"
@@ -106,7 +106,7 @@ Subject(=Authority in self-signed) Key Identifier : 03:C2:43:DF:A9:06:BE:DD:56:5
     string certRequest = cert.getRequestString();
 
     // signed by root. digest : sha512, serial : 1, days : 7
-    certCertificate = root.signRequest(certRequest, "1", 7, digest);
+    string certCertificate = root.signRequest(certRequest, "1", 7, digest);
     cout << certCertificate << endl;    // a brand new certificate signed by ROOT CA
   } catch(std::exception const& e) {
     cout << e.what();
