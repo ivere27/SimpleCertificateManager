@@ -452,50 +452,49 @@ public:
     this->x509_req = subject_x509_req;
   }
 
-  void genRequest(const char* countryName = NULL,
-                  const char* stateOrProvinceName = NULL,
-                  const char* localityName = NULL,
-                  const char* organizationName = NULL,
-                  const char* organizationalUnitName = NULL,
-                  const char* commonName = NULL,
-                  const char* emailAddress = NULL,
-                  const char* digest = "sha1") {
-    BIO *csr = BIO_new(BIO_s_mem());
+  void genRequest(string subject = "",
+                  const string digest = "sha1") {
+    if (key == NULL)
+      throw std::runtime_error("the key is null");
 
+    BIO *csr = BIO_new(BIO_s_mem());
     X509_REQ* new_x509_req = X509_REQ_new();
 
     // https://tools.ietf.org/html/rfc2986
     if (!X509_REQ_set_version(new_x509_req, 0L))
       throw std::runtime_error("X509_REQ_set_version");
 
-    X509_NAME *x509_name = X509_REQ_get_subject_name(new_x509_req);
-    if ( countryName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"C", this->chtype, (const unsigned char*)countryName, -1, -1, 0)))
-      throw std::runtime_error("X509_NAME_add_entry_by_txt - C");
-    if ( stateOrProvinceName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"ST", this->chtype, (const unsigned char*)stateOrProvinceName, -1, -1, 0)))
-      throw std::runtime_error("X509_NAME_add_entry_by_txt - ST");
-    if ( localityName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"L", this->chtype, (const unsigned char*)localityName, -1, -1, 0)))
-      throw std::runtime_error("X509_NAME_add_entry_by_txt - L");
-    if ( organizationName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"O", this->chtype, (const unsigned char*)organizationName, -1, -1, 0)))
-      throw std::runtime_error("X509_NAME_add_entry_by_txt - O");
-    if ( organizationalUnitName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"OU", this->chtype, (const unsigned char*)organizationalUnitName, -1, -1, 0)))
-      throw std::runtime_error("X509_NAME_add_entry_by_txt - OU");
-    if ( commonName
-      && (!X509_NAME_add_entry_by_txt(x509_name,"CN", this->chtype, (const unsigned char*)commonName, -1, -1, 0)))
-      throw std::runtime_error("X509_NAME_add_entry_by_txt - CN");
-    if ( emailAddress
-      && (!X509_NAME_add_entry_by_txt(x509_name,"emailAddress", this->chtype, (const unsigned char*)emailAddress, -1, -1, 0)))
-      throw std::runtime_error("X509_NAME_add_entry_by_txt - CN");
+    if (!subject.empty()) {
+      X509_NAME *x509_name = X509_REQ_get_subject_name(new_x509_req);
+
+      // FIXME : multivalued RDNs is not supported.
+      //         do not input '/' and '='. there are not escaped yet!
+      // split the subject by '/'. ex, /type0=value0/type1=value1/type2=...
+      string delimiter = "/";
+      size_t pos = 0;
+      string token;
+      while ((pos = subject.find("/")) != string::npos) {
+          token = subject.substr(0, pos);
+
+          string field = token.substr(0, token.find("="));
+          string value = token.substr(token.find("=") +1, token.length());
+
+          if ( !field.empty()
+            && (!X509_NAME_add_entry_by_txt(x509_name,field.c_str(), this->chtype, (const unsigned char*)value.c_str(), -1, -1, 0)))
+              throw std::runtime_error("X509_NAME_add_entry_by_txt");
+
+          subject.erase(0, pos + delimiter.length());
+      }
+
+      if (!X509_REQ_set_subject_name(new_x509_req, x509_name))
+        throw std::runtime_error("X509_REQ_set_subject_name");
+    }
 
     // set public key
     if (!X509_REQ_set_pubkey(new_x509_req, key))
       throw std::runtime_error("X509_REQ_set_pubkey");
 
-    EVP_MD const *md = EVP_get_digestbyname(digest);
+    EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
     if (md == NULL)
       throw std::runtime_error("unknown digest");
 

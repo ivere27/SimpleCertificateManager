@@ -77,14 +77,16 @@ int main() {
     const char* commonName = "www.example.com";
     const char* emailAddress = "dory@example.com";
 
-    key.genRequest(countryName,
-                   stateOrProvinceName,
-                   localityName,
-                   organizationName,
-                   organizationalUnitName,
-                   commonName,
-                   emailAddress,
-                   digest);
+    string subject;
+    subject += "/C=" ; subject += countryName;
+    subject += "/ST="; subject += stateOrProvinceName;
+    subject += "/L=" ; subject += localityName;
+    subject += "/O=" ; subject += organizationName;
+    subject += "/OU="; subject += organizationalUnitName;
+    subject += "/CN="; subject += commonName;
+    subject += "/emailAddress="; subject += emailAddress;
+
+    key.genRequest(subject, digest);
     string request = key.getRequestString();
     cout << key.getRequestPrint() << endl;
 
@@ -145,14 +147,16 @@ int main() {
     const char* commonName = "www.example.com";
     const char* emailAddress = "dory@example.com";
 
-    root.genRequest(countryName,
-                    stateOrProvinceName,
-                    localityName,
-                    organizationName,
-                    organizationalUnitName,
-                    commonName,
-                    emailAddress,
-                    digest);
+    string subject;
+    subject += "/C=" ; subject += countryName;
+    subject += "/ST="; subject += stateOrProvinceName;
+    subject += "/L=" ; subject += localityName;
+    subject += "/O=" ; subject += organizationName;
+    subject += "/OU="; subject += organizationalUnitName;
+    subject += "/CN="; subject += commonName;
+    subject += "/emailAddress="; subject += emailAddress;
+
+    root.genRequest(subject, digest);
     rootRequest = root.getRequestString();
     cout << root.getRequestPrint() << endl;
 
@@ -185,14 +189,16 @@ int main() {
     const char* commonName = "www.example.com - 한中に";
     const char* emailAddress = "dory@example.com";
 
-    root.genRequest(countryName,
-                    stateOrProvinceName,
-                    localityName,
-                    organizationName,
-                    organizationalUnitName,
-                    commonName,
-                    emailAddress,
-                    digest);
+    string subject;
+    subject += "/C=" ; subject += countryName;
+    subject += "/ST="; subject += stateOrProvinceName;
+    subject += "/L=" ; subject += localityName;
+    subject += "/O=" ; subject += organizationName;
+    subject += "/OU="; subject += organizationalUnitName;
+    subject += "/CN="; subject += commonName;
+    subject += "/emailAddress="; subject += emailAddress;
+
+    root.genRequest(subject, digest);
     rootRequest = root.getRequestString();
 
     // ROOTCA(self-signed). csr: null, serial : 0, days : 365, digest : sha256
@@ -223,14 +229,16 @@ int main() {
     const char* commonName = "www.example.org";
     const char* emailAddress = "dorydory@example.com";
 
-    cert.genRequest(countryName,
-                    stateOrProvinceName,
-                    localityName,
-                    organizationName,
-                    organizationalUnitName,
-                    commonName,
-                    emailAddress,
-                    digest);
+    string subject;
+    subject += "/C=" ; subject += countryName;
+    subject += "/ST="; subject += stateOrProvinceName;
+    subject += "/L=" ; subject += localityName;
+    subject += "/O=" ; subject += organizationName;
+    subject += "/OU="; subject += organizationalUnitName;
+    subject += "/CN="; subject += commonName;
+    subject += "/emailAddress="; subject += emailAddress;
+
+    cert.genRequest(subject, digest);
     certRequest = cert.getRequestString();
 
     // signed by root. digest : sha512, serial : 1, days : 7
