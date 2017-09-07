@@ -617,12 +617,11 @@ public:
         X509V3_set_ctx(&ctx, this->x509, subject_x509, NULL, NULL, 0);
       }
 
-
       EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
       if (md == NULL)
         throw std::runtime_error("unknown digest");
 
-      if (!X509_sign(subject_x509, key, md))
+      if (!X509_sign(subject_x509, this->key, md))
         throw std::runtime_error("X509_sign");
 
       BIO *crt_bio = BIO_new(BIO_s_mem());
@@ -640,6 +639,7 @@ public:
       return s;
   }
 
+  // load the private key's own certificate.
   void loadCertificate(const string& certificate) {
     if (certificate.empty())
       throw std::runtime_error("certificate is null");
@@ -650,8 +650,13 @@ public:
     if (x509 == NULL)
       throw std::runtime_error("PEM_read_bio_X509");
 
-    // overwrite 'certificate' pem
-    this->certificate = certificate;
+    // re-generate pem and then overwrite 'certificate' variable
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (!PEM_write_bio_X509(bio, x509))
+      throw std::runtime_error("PEM_write_bio_X509");
+
+    this->certificate = bio2string(bio);
+    BIO_free(bio);
 
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_get_X509_PUBKEY(x509);
@@ -691,13 +696,11 @@ public:
     string s = bio2string(bio);
     BIO_free(bio);
 
-    unsigned char pkey_dig[EVP_MAX_MD_SIZE];
-    unsigned int diglen;
-
-    if (!EVP_Digest(s.c_str(), s.length(), pkey_dig, &diglen, EVP_sha1(), NULL))
+    unsigned char md[SHA_DIGEST_LENGTH];
+    if (!EVP_Digest(s.c_str(), s.length(), md, NULL, EVP_sha1(), NULL))
       throw std::runtime_error("EVP_Digest");
 
-    return OPENSSL_buf2hexstr(pkey_dig, diglen);
+    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
   }
 
   std::string getCertificateIdentifier() {
@@ -729,8 +732,6 @@ public:
 
     const unsigned char *pk;
     int pklen;
-    unsigned char pkey_dig[EVP_MAX_MD_SIZE];
-    unsigned int diglen;
 
     if (!X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, this->pubkey))
       throw std::runtime_error("X509_PUBKEY_get0_param");
