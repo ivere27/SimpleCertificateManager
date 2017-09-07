@@ -122,7 +122,7 @@ int main() {
     cout << key.getPublicKeyPrint() << endl;
 
     Key test = Key();
-    test.loadPublicKey(key.getPublicKeyString().c_str());
+    test.loadPublicKey(key.getPublicKeyString());
     cout << test.getPublicKeyPrint() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
@@ -160,8 +160,8 @@ int main() {
     rootRequest = root.getRequestString();
     cout << root.getRequestPrint() << endl;
 
-    Key key2 = Key(rootPrivate.c_str());
-    key2.loadRequest(rootRequest.c_str());
+    Key key2 = Key(rootPrivate);
+    key2.loadRequest(rootRequest);
 
     cout << key2.getRequestPrint() << endl;
 
@@ -212,15 +212,15 @@ int main() {
   // load root from string and sign a cert.
   string certPrivate, certPublic, certRequest, certCertificate;
   try {
-    Key root = Key(rootPrivate.c_str());
-    root.loadCertificate(rootCertificate.c_str());
+    Key root = Key(rootPrivate);
+    root.loadCertificate(rootCertificate);
 
 
     Key cert = Key(2048); // new key
     certPrivate = cert.getPrivateKeyString();
     certPublic = cert.getPublicKeyString();
 
-    const char* digest = "sha256";                  // sha256
+    string digest = "sha256";                  // sha256
     const char* countryName = "US";                 // 2 chars
     const char* stateOrProvinceName = "CERT-ST";
     const char* localityName = "CERT-L";
@@ -251,11 +251,11 @@ int main() {
   // create a new csr by existing certificate.
   string otherRequest, otherCertificate;
   try {
-    Key root = Key(rootPrivate.c_str());
-    root.loadCertificate(rootCertificate.c_str());
+    Key root = Key(rootPrivate);
+    root.loadCertificate(rootCertificate);
 
     Key other = Key(2048);
-    otherRequest = other.getRequestByCertificate(certCertificate.c_str());
+    otherRequest = other.getRequestByCertificate(certCertificate);
 
     // signed by root. digest : sha512, serial : 2, days : 14
     otherCertificate = root.signRequest(otherRequest, "2", 14, "sha512");
