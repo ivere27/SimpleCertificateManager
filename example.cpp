@@ -240,10 +240,13 @@ int main() {
 
     cert.genRequest(subject, digest);
     certRequest = cert.getRequestString();
+    cout << cert.getRequestPrint() << endl;
 
     // signed by root. digest : sha512, serial : 1, days : 7
     certCertificate = root.signRequest(certRequest, "1", 7, digest);
 
+    cert.loadCertificate(certCertificate);
+    cout << cert.getCertificatePrint() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }
@@ -256,6 +259,7 @@ int main() {
 
     Key other = Key(2048);
     otherRequest = other.getRequestByCertificate(certCertificate);
+    cout << other.getRequestPrint() << endl;
 
     // signed by root. digest : sha512, serial : 2, days : 14
     otherCertificate = root.signRequest(otherRequest, "2", 14, "sha512");

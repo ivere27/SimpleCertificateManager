@@ -487,6 +487,32 @@ public:
         throw std::runtime_error("X509_REQ_set_subject_name");
     }
 
+    // extensions
+    {
+      X509V3_CTX ctx;
+      X509V3_set_ctx_test(&ctx);
+
+      BIO *in = BIO_new_mem_buf(default_conf_str, -1);
+      long errorline = -1;
+      CONF *conf;
+      int i;
+
+      conf = NCONF_new(NULL);
+      i = NCONF_load_bio(conf, in, &errorline);
+      if (i <= 0)
+        throw std::runtime_error("NCONF_load_bio");
+
+      X509V3_set_nconf(&ctx, conf);
+      X509V3_set_ctx(&ctx, NULL, NULL, new_x509_req, NULL, 0);
+
+      if (!X509V3_EXT_REQ_add_nconf(conf, &ctx, "v3_req", new_x509_req))
+        throw std::runtime_error("X509V3_EXT_add_nconf");
+
+      BIO_free(in);
+      NCONF_free(conf);
+    }
+
+
     // set public key
     if (!X509_REQ_set_pubkey(new_x509_req, key))
       throw std::runtime_error("X509_REQ_set_pubkey");
