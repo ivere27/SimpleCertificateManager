@@ -49,7 +49,7 @@ int main() {
     if (file.read(buffer.data(), size))
     {
       // cout<<buffer.data();
-      Key key = Key(nullptr);
+      Key key = Key();
       key.loadCertificate(buffer.data());
       cout << key.getCertificatePrint() << endl;
       cout << key.getCertificateKeyIdentifier() << endl;

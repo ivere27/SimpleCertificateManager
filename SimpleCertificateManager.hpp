@@ -192,7 +192,7 @@ static std::string bio2string(BIO* bio) {
 
 class Key {
 public:
-  Key(int kbits = 2048) { // FIXME : support passphrase
+  Key(int kbits) { // FIXME : support passphrase
     if (kbits == 0)  // empty key.
         return;
 
@@ -224,28 +224,28 @@ public:
     this->kbits = kbits;
     this->privateKey = bio2string(pri_bio);
   }
-  Key(const char* pri_key) {
-    if (pri_key == nullptr)  // empty key.
+  Key(const string&& privateKey = "") {
+    if (privateKey.empty())  // empty key.
       return;
 
-    if (key != NULL)
+    if (this->key != NULL)
       throw std::runtime_error("the key is set");
 
-    pri_bio = BIO_new_mem_buf(pri_key, -1);
-    if (!pri_bio)
+    this->pri_bio = BIO_new_mem_buf(privateKey.c_str(), -1);
+    if (!this->pri_bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    if ((key = PEM_read_bio_PrivateKey(pri_bio, NULL, 0, NULL)) == NULL)
+    if ((this->key = PEM_read_bio_PrivateKey(this->pri_bio, NULL, 0, NULL)) == NULL)
         throw std::runtime_error("PEM_read_bio_PrivateKey");;
 
-    RSA* rsa = EVP_PKEY_get0_RSA(key);
+    RSA* rsa = EVP_PKEY_get0_RSA(this->key);
     if (!RSA_check_key(rsa))
       throw std::runtime_error("RSA_check_key");
 
-    if(!X509_PUBKEY_set(&pubkey, key))
+    if(!X509_PUBKEY_set(&this->pubkey, this->key))
       throw std::runtime_error("X509_PUBKEY_set");
 
-    this->privateKey = pri_key;
+    this->privateKey = privateKey;
     this->kbits =  RSA_bits(rsa);
   }
   ~Key() {
@@ -261,63 +261,63 @@ public:
   }
 
   std::string getPrivateKeyPrint(int indent = 0) {
-    int ret;
+    if (key == NULL)
+      throw std::runtime_error("key is null");
+
     BIO *bio = BIO_new(BIO_s_mem());
 
-    ret = EVP_PKEY_print_private(bio, key, indent, NULL);
+    if (!EVP_PKEY_print_private(bio, key, indent, NULL))
+      throw std::runtime_error("EVP_PKEY_print_private");
 
-    int len = BIO_pending(bio);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(bio, buf, len);
+    string s = bio2string(bio);
     BIO_free(bio);
 
-    return buf;
+    return s;
   }
 
   // load PublicKey by given pub_str
-  void loadPublicKey(const char* pub_key) {
-    if (key != NULL)
+  void loadPublicKey(const string&& publicKey) {
+    if (this->key != NULL)
       throw std::runtime_error("the key is set");
 
-    pub_bio = BIO_new_mem_buf(pub_key, -1);
+    this->pub_bio = BIO_new_mem_buf(publicKey.c_str(), -1);
     if (!pub_bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    key = PEM_read_bio_PUBKEY(pub_bio, NULL,
-                              NULL,
-                              0);
-    if (key == NULL)
+    this->key = PEM_read_bio_PUBKEY(this->pub_bio, NULL,
+                                    NULL,
+                                    0);
+
+    if (this->key == NULL)
       throw std::runtime_error("PEM_read_bio_PUBKEY");
+
+    this->publicKey = publicKey;
   }
 
   std::string getPublicKeyString() {
-    if (!publicKey.empty())
+    if (!this->publicKey.empty())
       return publicKey;
 
-    if (pub_bio == NULL) {
-      pub_bio = BIO_new(BIO_s_mem());
-      if (pub_bio == NULL)
+    if (this->pub_bio == NULL) {
+      this->pub_bio = BIO_new(BIO_s_mem());
+      if (this->pub_bio == NULL)
         throw std::runtime_error("BIO_new");
 
-      RSA* rsa = EVP_PKEY_get0_RSA(key);
+      RSA* rsa = EVP_PKEY_get0_RSA(this->key);
 
-      if (!PEM_write_bio_RSA_PUBKEY(pub_bio, rsa))
+      if (!PEM_write_bio_RSA_PUBKEY(this->pub_bio, rsa))
         throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
     }
 
-    return bio2string(pub_bio);
+    return bio2string(this->pub_bio);
   }
 
   std::string getPublicKeyPrint(int indent = 0) {
-    if (key == NULL)
+    if (this->key == NULL)
       throw std::runtime_error("the key is null");
 
     BIO *bio = BIO_new(BIO_s_mem());
-    if (!EVP_PKEY_print_public(bio, key, indent, NULL))
+    if (!EVP_PKEY_print_public(bio, this->key, indent, NULL))
       throw std::runtime_error("EVP_PKEY_print_public");
 
     string s = bio2string(bio);
@@ -335,8 +335,8 @@ public:
   }
 
   // create a new csr from existing certificate
-  std::string getRequestByCertificate(const char* ref_crt_str) {
-    BIO* ref_crt_bio = BIO_new_mem_buf(ref_crt_str, -1);
+  std::string getRequestByCertificate(const string&& refRequest) {
+    BIO* ref_crt_bio = BIO_new_mem_buf(refRequest.c_str(), -1);
     X509* ref_x509 = PEM_read_bio_X509(ref_crt_bio, NULL, NULL, NULL);
     BIO_free(ref_crt_bio);
     if (ref_x509 == NULL)
@@ -402,9 +402,9 @@ public:
     return s;
   }
 
-  // load PublicKey by given csr_str
-  void loadRequest(const char* csr_str) {
-    BIO* csr_bio = BIO_new_mem_buf(csr_str, -1);
+  // load CSR by given PEM
+  void loadRequest(const string&& request) {
+    BIO* csr_bio = BIO_new_mem_buf(request.c_str(), -1);
     X509_REQ* subject_x509_req = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
     if (subject_x509_req == NULL)
       throw std::runtime_error("PEM_read_bio_X509_REQ");
@@ -422,19 +422,16 @@ public:
     const BIGNUM *ntmp;
     RSA_get0_key(EVP_PKEY_get0_RSA(pktmp), &ntmp, NULL, NULL);
 
-
     // get original modulus
     const BIGNUM *n;
-    RSA* rsa = EVP_PKEY_get0_RSA(key);
+    RSA* rsa = EVP_PKEY_get0_RSA(this->key);
     RSA_get0_key(rsa, &n, NULL, NULL);
-
 
     // check
     char* ntmp_hex = BN_bn2hex(ntmp);
     char* n_hex = BN_bn2hex(n);
     if (strcmp(ntmp_hex, n_hex) != 0)
       throw std::runtime_error("verify failed");
-
 
     // store(overwrite) it.
     BIO *csr = BIO_new(BIO_s_mem());
@@ -453,8 +450,8 @@ public:
   }
 
   void genRequest(string subject = "",
-                  const string digest = "sha1") {
-    if (key == NULL)
+                  const string&& digest = "sha1") {
+    if (this->key == NULL)
       throw std::runtime_error("the key is null");
 
     BIO *csr = BIO_new(BIO_s_mem());
@@ -529,20 +526,20 @@ public:
     return s;
   }
 
-  string signRequest(const char* csr_str = NULL,
-                     const char* serial = NULL,
+  string signRequest(string request = "",
+                     const string&& serial = "",
                      int days = 365,
-                     const char* digest = "sha1") {       // default sha1
+                     const string digest = "sha1") {       // default sha1
       bool isSelfSigned = false;
-      if (csr_str == NULL) { // self-signed
+      if (request.empty()) { // self-signed
         isSelfSigned = true;
-        csr_str = this->request.c_str();
+        request = this->request;
       } else {
-        if (strcmp(csr_str, this->request.c_str()) == 0)
+        if (request.compare(this->request) == 0)
           isSelfSigned = true;
       }
 
-      BIO* csr_bio = BIO_new_mem_buf(csr_str, -1);
+      BIO* csr_bio = BIO_new_mem_buf(request.c_str(), -1);
       X509_REQ* subject_x509_req = PEM_read_bio_X509_REQ(csr_bio, NULL, NULL, NULL);
       if (subject_x509_req == NULL)
         throw std::runtime_error("PEM_read_bio_X509_REQ");
@@ -553,11 +550,11 @@ public:
         throw std::runtime_error("X509_set_version");
 
       ASN1_INTEGER *aserial = NULL;
-      if (serial == NULL) {
+      if (serial.empty()) {
         if ((aserial = ASN1_INTEGER_new()) == NULL)
           throw std::runtime_error("ASN1_INTEGER_new");
       } else {
-        if ((aserial = s2i_ASN1_INTEGER(NULL, serial)) == NULL)
+        if ((aserial = s2i_ASN1_INTEGER(NULL, serial.c_str())) == NULL)
           throw std::runtime_error("s2i_ASN1_INTEGER");
       }
 
@@ -619,7 +616,7 @@ public:
       }
 
 
-      EVP_MD const *md = EVP_get_digestbyname(digest);
+      EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
       if (md == NULL)
         throw std::runtime_error("unknown digest");
 
@@ -641,17 +638,18 @@ public:
       return s;
   }
 
-  void loadCertificate(const char* crt_str) {
-    if (crt_str == NULL)
-      throw std::runtime_error("crt_str is null");
+  void loadCertificate(const string&& certificate) {
+    if (certificate.empty())
+      throw std::runtime_error("certificate is null");
 
-    BIO* crt_bio = BIO_new_mem_buf(crt_str, -1);
+    BIO* crt_bio = BIO_new_mem_buf(certificate.c_str(), -1);
     X509* x509 = PEM_read_bio_X509(crt_bio, NULL, NULL, NULL);
     BIO_free(crt_bio);
     if (x509 == NULL)
       throw std::runtime_error("PEM_read_bio_X509");
 
-    this->certificate = crt_str;
+    // overwrite 'certificate' pem
+    this->certificate = certificate;
 
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_get_X509_PUBKEY(x509);
@@ -661,7 +659,7 @@ public:
   }
 
   std::string getCertificatePrint() {
-    if (x509 == NULL)
+    if (this->x509 == NULL)
       throw std::runtime_error("certificate is null");
 
     BIO *bio = BIO_new(BIO_s_mem());
@@ -682,47 +680,41 @@ public:
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
 
     // Turn a private key into a PKCS8 structure
-    if ((p8inf = EVP_PKEY2PKCS8(key)) == NULL)
+    if ((p8inf = EVP_PKEY2PKCS8(this->key)) == NULL)
       throw std::runtime_error("EVP_PKEY2PKCS8");
 
     if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio, p8inf))
       throw std::runtime_error("i2d_PKCS8_PRIV_KEY_INFO_bio");
 
-    int len = BIO_pending(bio);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
-
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(bio, buf, len);
+    string s = bio2string(bio);
     BIO_free(bio);
 
     unsigned char pkey_dig[EVP_MAX_MD_SIZE];
     unsigned int diglen;
 
-    if (!EVP_Digest(buf, len, pkey_dig, &diglen, EVP_sha1(), NULL))
+    if (!EVP_Digest(s.c_str(), s.length(), pkey_dig, &diglen, EVP_sha1(), NULL))
       throw std::runtime_error("EVP_Digest");
 
     return OPENSSL_buf2hexstr(pkey_dig, diglen);
   }
 
   std::string getCertificateIdentifier() {
-    if (x509 == NULL)
+    if (this->x509 == NULL)
       throw std::runtime_error("x509 is null");
 
     unsigned char md[SHA_DIGEST_LENGTH];
-    if (!X509_digest(x509, EVP_sha1(), md, NULL))
+    if (!X509_digest(this->x509, EVP_sha1(), md, NULL))
       throw std::runtime_error("X509_digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
   }
 
   std::string getRequestIdentifier() {
-    if (x509_req == NULL)
+    if (this->x509_req == NULL)
       throw std::runtime_error("x509_req is null");
 
     unsigned char md[SHA_DIGEST_LENGTH];
-    if (!X509_REQ_digest(x509_req, EVP_sha1(), md, NULL))
+    if (!X509_REQ_digest(this->x509_req, EVP_sha1(), md, NULL))
       throw std::runtime_error("X509_REQ_digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
@@ -730,7 +722,7 @@ public:
 
  // X509v3 Authority/Subject Key Identifier
   std::string getPublicKeyIdentifier() {
-    if (pubkey == NULL)
+    if (this->pubkey == NULL)
       throw std::runtime_error("pubkey is null");
 
     const unsigned char *pk;
@@ -738,7 +730,7 @@ public:
     unsigned char pkey_dig[EVP_MAX_MD_SIZE];
     unsigned int diglen;
 
-    if (!X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, pubkey))
+    if (!X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, this->pubkey))
       throw std::runtime_error("X509_PUBKEY_get0_param");
 
     unsigned char md[SHA_DIGEST_LENGTH];
@@ -751,11 +743,11 @@ public:
   // X509v3 Authority/Subject Key Identifier
   // getPublicKeyIdentifier = getCertificateKeyIdentifier
   std::string getCertificateKeyIdentifier() {
-    if (x509 == NULL)
+    if (this->x509 == NULL)
       throw std::runtime_error("x509 is null");
 
     unsigned char md[SHA_DIGEST_LENGTH];
-    if (!X509_pubkey_digest(x509, EVP_sha1(), md, NULL))
+    if (!X509_pubkey_digest(this->x509, EVP_sha1(), md, NULL))
       throw std::runtime_error("X509_pubkey_digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
