@@ -121,7 +121,7 @@ int main() {
     Key key = Key(2048);                           // 2048 bit
     cout << key.getPublicKeyPrint() << endl;
 
-    Key test = Key(nullptr);
+    Key test = Key();
     test.loadPublicKey(key.getPublicKeyString().c_str());
     cout << test.getPublicKeyPrint() << endl;
   } catch(std::exception const& e) {
