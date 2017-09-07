@@ -533,6 +533,9 @@ public:
       bool isSelfSigned = false;
       string csr;
       if (request.empty()) { // self-signed
+        if (this->request.empty())
+          throw std::runtime_error("request is empty for self-signed certificate");
+
         csr = this->request;
         isSelfSigned = true;
       } else {
