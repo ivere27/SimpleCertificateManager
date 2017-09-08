@@ -20,6 +20,10 @@
 namespace certificate {
 using namespace std;
 
+#define EXTENSIONS_DEFAULT_CERT    "usr_cert"
+#define EXTENSIONS_DEFAULT_REQUEST "v3_req"
+#define EXTENSIONS_DEFAULT_ROOTCA  "v3_ca"
+
 // OpenSSL_1_1_0f/apps/openssl.cnf
 const char* default_conf_str =
 "[ usr_cert ]\n"
@@ -254,6 +258,7 @@ public:
     EVP_PKEY_free(key);
     X509_free(x509);
     X509_REQ_free(x509_req);
+    NCONF_free(conf);
   }
 
   std::string getPrivateKeyString() {
@@ -450,7 +455,8 @@ public:
   }
 
   void genRequest(string subject = "",
-                  const string& digest = "sha1") {
+                  const string& digest = "sha1",
+                  const string& extensions = "") {
     if (this->key == NULL)
       throw std::runtime_error("the key is null");
 
@@ -487,31 +493,18 @@ public:
         throw std::runtime_error("X509_REQ_set_subject_name");
     }
 
-    // extensions
-    {
-      X509V3_CTX ctx;
-      X509V3_set_ctx_test(&ctx);
+    // load conf if not loaded.
+    if (conf == NULL)
+      this->loadConf();
 
-      BIO *in = BIO_new_mem_buf(default_conf_str, -1);
-      long errorline = -1;
-      CONF *conf;
-      int i;
+    X509V3_CTX ctx;
+    X509V3_set_ctx_test(&ctx);
+    X509V3_set_nconf(&ctx, conf);
+    X509V3_set_ctx(&ctx, NULL, NULL, new_x509_req, NULL, 0);
 
-      conf = NCONF_new(NULL);
-      i = NCONF_load_bio(conf, in, &errorline);
-      if (i <= 0)
-        throw std::runtime_error("NCONF_load_bio");
-
-      X509V3_set_nconf(&ctx, conf);
-      X509V3_set_ctx(&ctx, NULL, NULL, new_x509_req, NULL, 0);
-
-      if (!X509V3_EXT_REQ_add_nconf(conf, &ctx, "v3_req", new_x509_req))
-        throw std::runtime_error("X509V3_EXT_add_nconf");
-
-      BIO_free(in);
-      NCONF_free(conf);
-    }
-
+    string section = extensions.empty() ? EXTENSIONS_DEFAULT_REQUEST : extensions;
+    if (!X509V3_EXT_REQ_add_nconf(conf, &ctx, section.c_str(), new_x509_req))
+      throw std::runtime_error("X509V3_EXT_add_nconf");
 
     // set public key
     if (!X509_REQ_set_pubkey(new_x509_req, key))
@@ -555,7 +548,8 @@ public:
   string signRequest(const string& request = "",
                      const string& serial = "",
                      const int days = 365,
-                     const string& digest = "sha1") {       // default sha1
+                     const string& digest = "sha1",
+                     const string& extensions = "") {       // default sha1
       bool isSelfSigned = false;
       string csr;
       if (request.empty()) { // self-signed
@@ -618,34 +612,27 @@ public:
       if (enddate == NULL)
         throw std::runtime_error("X509_getm_notAfter");
 
+      // load conf if not loaded.
+      if (conf == NULL)
+        this->loadConf();
 
       // FIXME : extension argument
       X509V3_CTX ctx;
       X509V3_set_ctx_test(&ctx);
-
-      BIO *in = BIO_new_mem_buf(default_conf_str, -1);
-      long errorline = -1;
-      CONF *conf;
-      int i;
-
-      conf = NCONF_new(NULL);
-      i = NCONF_load_bio(conf, in, &errorline);
-      if (i <= 0)
-        throw std::runtime_error("NCONF_load_bio");
-
       X509V3_set_nconf(&ctx, conf);
+
+      string section;
       if (isSelfSigned) {
+        section = extensions.empty() ? EXTENSIONS_DEFAULT_ROOTCA : extensions;
         X509V3_set_ctx(&ctx, subject_x509, subject_x509, NULL, NULL, 0);
-        if (!X509V3_EXT_add_nconf(conf, &ctx, "v3_ca", subject_x509))
+        if (!X509V3_EXT_add_nconf(conf, &ctx, section.c_str(), subject_x509))
           throw std::runtime_error("X509V3_EXT_add_nconf");
       } else {
+        section = extensions.empty() ? EXTENSIONS_DEFAULT_CERT : extensions;
         X509V3_set_ctx(&ctx, this->x509, subject_x509, NULL, NULL, 0);
-        if (!X509V3_EXT_add_nconf(conf, &ctx, "usr_cert", subject_x509))
+        if (!X509V3_EXT_add_nconf(conf, &ctx, section.c_str(), subject_x509))
           throw std::runtime_error("X509V3_EXT_add_nconf");
       }
-      BIO_free(in);
-      NCONF_free(conf);
-
 
       EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
       if (md == NULL)
@@ -800,6 +787,25 @@ public:
       throw std::runtime_error("unknown chtype");
   }
 
+  void loadConf(const string& config = "") {
+    BIO *in;
+    if (config.empty())
+      in = BIO_new_mem_buf(default_conf_str, -1);
+    else
+      in = BIO_new_mem_buf(config.c_str(), -1);
+
+    long errorline = -1;
+    int i;
+
+    NCONF_free(this->conf);
+    this->conf = NCONF_new(NULL);
+    i = NCONF_load_bio(this->conf, in, &errorline);
+    if (i <= 0)
+      throw std::runtime_error("NCONF_load_bio");
+
+    BIO_free(in);
+  }
+
 private:
   EVP_PKEY *key  = NULL;
   X509_PUBKEY *pubkey = NULL;
@@ -813,6 +819,7 @@ private:
   BIO* pub_bio = NULL;
   X509* x509 = NULL;
   X509_REQ* x509_req = NULL;
+  CONF *conf = NULL;
 
   unsigned long chtype = MBSTRING_UTF8; // PKIX recommendation
 };
