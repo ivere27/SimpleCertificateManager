@@ -454,7 +454,7 @@ public:
     this->x509_req = subject_x509_req;
   }
 
-  void genRequest(string subject = "",
+  void genRequest(const string& subject = "",
                   const string& digest = "sha1",
                   const string& extensions = "") {
     if (this->key == NULL)
@@ -473,11 +473,12 @@ public:
       // FIXME : multivalued RDNs is not supported.
       //         do not input '/' and '='. there are not escaped yet!
       // split the subject by '/'. ex, /type0=value0/type1=value1/type2=...
+      string subj = subject;
       string delimiter = "/";
       size_t pos = 0;
       string token;
-      while ((pos = subject.find("/")) != string::npos) {
-          token = subject.substr(0, pos);
+      while ((pos = subj.find("/")) != string::npos) {
+          token = subj.substr(0, pos);
 
           string field = token.substr(0, token.find("="));
           string value = token.substr(token.find("=") +1, token.length());
@@ -486,7 +487,7 @@ public:
             && (!X509_NAME_add_entry_by_txt(x509_name,field.c_str(), this->chtype, (const unsigned char*)value.c_str(), -1, -1, 0)))
               throw std::runtime_error("X509_NAME_add_entry_by_txt");
 
-          subject.erase(0, pos + delimiter.length());
+          subj.erase(0, pos + delimiter.length());
       }
 
       if (!X509_REQ_set_subject_name(new_x509_req, x509_name))
