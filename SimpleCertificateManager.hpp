@@ -697,7 +697,7 @@ public:
     return s;
   }
 
-  std::string gerPrivateKeyIdentifier() {
+  std::string getPrivateKeyIdentifier() {
     if (this->key == NULL)
       throw std::runtime_error("key is null");
 

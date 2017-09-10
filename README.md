@@ -12,7 +12,7 @@ try {
   Key key = Key(2048);    // bits
   cout << key.getPrivateKeyString() << endl;      // private key in PEM
   cout << key.getPublicKeyString() << endl;       // public key in PEM
-  cout << "private key fingerprint : " << key.gerPrivateKeyIdentifier() << endl;  // private key fingerprint
+  cout << "private key fingerprint : " << key.getPrivateKeyIdentifier() << endl;  // private key fingerprint
   cout << "public  key fingerprint : " << key.getPublicKeyIdentifier() << endl;   // public key fingerprint
 } catch(std::exception const& e) {
     cout << e.what();

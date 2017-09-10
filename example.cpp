@@ -18,7 +18,7 @@ int main() {
     {
       // cout<<buffer.data();
       Key key = Key(buffer.data());
-      cout << key.gerPrivateKeyIdentifier() << endl;
+      cout << key.getPrivateKeyIdentifier() << endl;
     }
   } catch(std::exception const& e) {
     cout << e.what();
@@ -32,7 +32,7 @@ int main() {
   // openssl pkcs8 -in rootca.key -inform PEM -outform DER -topk8 -nocrypt | openssl sha1 -c
   try {
     Key key = Key(2048);
-    cout << key.gerPrivateKeyIdentifier() << endl;
+    cout << key.getPrivateKeyIdentifier() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }
