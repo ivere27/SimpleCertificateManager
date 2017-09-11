@@ -683,6 +683,16 @@ public:
     this->x509 = x509;
   }
 
+  // CAUTION : only use this API when loadCertificate()
+  //           this is SUBJECT's certificate. not ISSUER!
+  // return Certificate.
+  std::string getCertificateString() {
+      if (this->certificate.empty())
+        throw std::runtime_error("certificate is null");
+
+      return certificate;
+  }
+
   std::string getCertificatePrint() {
     if (this->x509 == NULL)
       throw std::runtime_error("certificate is null");
