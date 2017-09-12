@@ -296,6 +296,12 @@ public:
     if (this->key == NULL)
       throw std::runtime_error("PEM_read_bio_PUBKEY");
 
+
+    if(!X509_PUBKEY_set(&pubkey, this->key))
+      throw std::runtime_error("X509_PUBKEY_set");
+
+    this->kbits = EVP_PKEY_bits(X509_PUBKEY_get0(this->pubkey));
+
     this->publicKey = publicKey;
   }
 
@@ -449,6 +455,8 @@ public:
     // get pubkey from request
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_REQ_get_X509_PUBKEY(subject_x509_req);
+
+    this->kbits = EVP_PKEY_bits(X509_PUBKEY_get0(this->pubkey));
 
     X509_REQ_free(x509_req);
     this->x509_req = subject_x509_req;
@@ -678,6 +686,8 @@ public:
 
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_get_X509_PUBKEY(x509);
+
+    this->kbits = EVP_PKEY_bits(X509_PUBKEY_get0(this->pubkey));
 
     X509_free(this->x509);
     this->x509 = x509;

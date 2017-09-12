@@ -54,6 +54,7 @@ int main() {
       cout << key.getCertificatePrint() << endl;
       cout << key.getCertificateKeyIdentifier() << endl;
       cout << key.getPublicKeyIdentifier() << endl;
+      cout << "length : " << key.length() << endl;
     }
   } catch(std::exception const& e) {
     cout << e.what();
@@ -120,10 +121,15 @@ int main() {
   try {
     Key key = Key(2048);                           // 2048 bit
     cout << key.getPublicKeyPrint() << endl;
+    cout << key.getPublicKeyIdentifier() << endl;
+
 
     Key test = Key();
     test.loadPublicKey(key.getPublicKeyString());
     cout << test.getPublicKeyPrint() << endl;
+    cout << test.getPublicKeyIdentifier() << endl;
+
+    cout << "length : " << test.length() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }
@@ -159,11 +165,13 @@ int main() {
     root.genRequest(subject, digest);
     rootRequest = root.getRequestString();
     cout << root.getRequestPrint() << endl;
+    cout << "length : " << root.length() << endl;
 
     Key key2 = Key(rootPrivate);
     key2.loadRequest(rootRequest);
 
     cout << key2.getRequestPrint() << endl;
+    cout << "length : " << key2.length() << endl;
 
   } catch(std::exception const& e) {
     cout << e.what();
