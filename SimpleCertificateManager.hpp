@@ -435,7 +435,7 @@ public:
 
     // get original modulus
     const BIGNUM *n;
-    RSA* rsa = EVP_PKEY_get0_RSA(this->key);
+    RSA* rsa = EVP_PKEY_get0_RSA(pktmp);
     RSA_get0_key(rsa, &n, NULL, NULL);
 
     // check

@@ -167,7 +167,7 @@ int main() {
     cout << root.getRequestPrint() << endl;
     cout << "length : " << root.length() << endl;
 
-    Key key2 = Key(rootPrivate);
+    Key key2 = Key("");
     key2.loadRequest(rootRequest);
 
     cout << key2.getRequestPrint() << endl;
