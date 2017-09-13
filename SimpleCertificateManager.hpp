@@ -306,6 +306,9 @@ public:
   }
 
   std::string getPublicKeyString() {
+    if (this->pubkey == NULL)
+      throw std::runtime_error("the public key is null");
+
     if (!this->publicKey.empty())
       return publicKey;
 
@@ -314,7 +317,7 @@ public:
       if (this->pub_bio == NULL)
         throw std::runtime_error("BIO_new");
 
-      RSA* rsa = EVP_PKEY_get0_RSA(this->key);
+      RSA* rsa = EVP_PKEY_get0_RSA(X509_PUBKEY_get0(this->pubkey));
 
       if (!PEM_write_bio_RSA_PUBKEY(this->pub_bio, rsa))
         throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
@@ -324,11 +327,11 @@ public:
   }
 
   std::string getPublicKeyPrint(int indent = 0) {
-    if (this->key == NULL)
-      throw std::runtime_error("the key is null");
+    if (this->pubkey == NULL)
+      throw std::runtime_error("the public key is null");
 
     BIO *bio = BIO_new(BIO_s_mem());
-    if (!EVP_PKEY_print_public(bio, this->key, indent, NULL))
+    if (!EVP_PKEY_print_public(bio, X509_PUBKEY_get0(this->pubkey), indent, NULL))
       throw std::runtime_error("EVP_PKEY_print_public");
 
     string s = bio2string(bio);
