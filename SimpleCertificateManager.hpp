@@ -488,17 +488,23 @@ public:
       string delimiter = "/";
       size_t pos = 0;
       string token;
-      while ((pos = subj.find("/")) != string::npos) {
-          token = subj.substr(0, pos);
+      while (true) {
+        if (subj.empty())
+          break;
 
-          string field = token.substr(0, token.find("="));
-          string value = token.substr(token.find("=") +1, token.length());
+        pos = subj.find("/");
+        if (pos == string::npos)  // last element
+          pos = subj.length();
 
-          if ( !field.empty()
-            && (!X509_NAME_add_entry_by_txt(x509_name,field.c_str(), this->chtype, (const unsigned char*)value.c_str(), -1, -1, 0)))
-              throw std::runtime_error("X509_NAME_add_entry_by_txt");
+        token = subj.substr(0, pos);
+        string field = token.substr(0, token.find("="));
+        string value = token.substr(token.find("=") +1, token.length());
 
-          subj.erase(0, pos + delimiter.length());
+        if ( !field.empty()
+             && (!X509_NAME_add_entry_by_txt(x509_name,field.c_str(), this->chtype, (const unsigned char*)value.c_str(), -1, -1, 0)))
+          throw std::runtime_error("X509_NAME_add_entry_by_txt");
+
+        subj.erase(0, pos + delimiter.length());
       }
 
       if (!X509_REQ_set_subject_name(new_x509_req, x509_name))
