@@ -7,6 +7,24 @@ using namespace std;
 using namespace certificate;
 
 int main() {
+#ifdef TEST_PRIVATE_KEY_PASSPHRASE
+  try {
+    Key key = Key(2048, "aes256", "dory");
+
+    string pem = key.getPrivateKeyString();
+    cout << pem << endl;
+    cout << key.getPrivateKeyIdentifier() << endl;
+
+    // ask password here.
+    Key key2 = Key(pem.c_str());
+    cout << key2.getPrivateKeyIdentifier() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+  return 0;
+#endif // TEST_PRIVATE_KEY_PASSPHRASE
+
+
 #ifdef TEST_PRIVATE_KEY_IDENTIFIER_FILE
   try {
     ifstream file("rootca.key", ios::binary | ios::ate);

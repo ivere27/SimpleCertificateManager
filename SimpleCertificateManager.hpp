@@ -196,12 +196,16 @@ static std::string bio2string(BIO* bio) {
 
 class Key {
 public:
-  Key(const int kbits) { // FIXME : support passphrase
+  Key(const int kbits, const string& cipher = "", const string& passphrase = "") {
+    bool usePassphrase = false;
     if (kbits == 0)  // empty key.
         return;
 
     if (key != NULL)
       throw std::runtime_error("the key is set");
+
+    if (!cipher.empty())
+      usePassphrase = true;
 
     RSA* rsa = RSA_new();
     BIGNUM* bn = BN_new();
@@ -214,7 +218,18 @@ public:
     if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
       throw std::runtime_error("BIO_new");
 
-    if (PEM_write_bio_RSAPrivateKey(pri_bio, rsa, NULL, NULL, 0, NULL, NULL) != 1)
+    const EVP_CIPHER *enc = NULL;
+    if (usePassphrase) {
+      if ((enc = EVP_get_cipherbyname(cipher.c_str())) == NULL)
+        throw std::runtime_error("EVP_get_cipherbyname");
+    }
+
+    // see PEM_ASN1_write_bio in pem_lib.c
+    if (PEM_write_bio_RSAPrivateKey(pri_bio,
+                                    rsa,
+                                    enc,
+                                    (unsigned char*)passphrase.c_str(),
+                                    passphrase.size(), NULL, NULL) != 1)
       throw std::runtime_error("RSA_generate_key_ex");
 
     key = EVP_PKEY_new();
