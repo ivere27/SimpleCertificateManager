@@ -15,8 +15,7 @@ int main() {
     cout << pem << endl;
     cout << key.getPrivateKeyIdentifier() << endl;
 
-    // ask password here.
-    Key key2 = Key(pem.c_str());
+    Key key2 = Key(pem.c_str(), "dory");
     cout << key2.getPrivateKeyIdentifier() << endl;
   } catch(std::exception const& e) {
     cout << e.what();

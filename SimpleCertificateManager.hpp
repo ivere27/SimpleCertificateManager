@@ -243,7 +243,7 @@ public:
     this->kbits = kbits;
     this->privateKey = bio2string(pri_bio);
   }
-  Key(const string& privateKey = "") {
+  Key(const string& privateKey = "", const string& passphrase = "") {
     if (privateKey.empty())  // empty key.
       return;
 
@@ -254,7 +254,10 @@ public:
     if (!this->pri_bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    if ((this->key = PEM_read_bio_PrivateKey(this->pri_bio, NULL, 0, NULL)) == NULL)
+    if ((this->key = PEM_read_bio_PrivateKey(this->pri_bio,
+                                             NULL,
+                                             0,
+                                             (void*)passphrase.c_str())) == NULL)
         throw std::runtime_error("PEM_read_bio_PrivateKey");;
 
     RSA* rsa = EVP_PKEY_get0_RSA(this->key);
