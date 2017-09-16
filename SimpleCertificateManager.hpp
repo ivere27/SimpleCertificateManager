@@ -224,16 +224,16 @@ public:
         throw std::runtime_error("EVP_get_cipherbyname");
     }
 
-    // see PEM_ASN1_write_bio in pem_lib.c
-    if (PEM_write_bio_RSAPrivateKey(pri_bio,
-                                    rsa,
-                                    enc,
-                                    (unsigned char*)passphrase.c_str(),
-                                    passphrase.size(), NULL, NULL) != 1)
-      throw std::runtime_error("RSA_generate_key_ex");
-
     key = EVP_PKEY_new();
     EVP_PKEY_assign_RSA(key, rsa);
+
+    // see PEM_ASN1_write_bio in pem_lib.c
+    if (PEM_write_bio_PKCS8PrivateKey(pri_bio,
+                                      key,
+                                      enc,
+                                      (char*)passphrase.c_str(),
+                                      passphrase.size(), NULL, NULL) != 1)
+      throw std::runtime_error("RSA_generate_key_ex");
 
     if(!X509_PUBKEY_set(&pubkey, key))
       throw std::runtime_error("X509_PUBKEY_set");
