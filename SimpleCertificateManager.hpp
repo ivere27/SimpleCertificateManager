@@ -755,14 +755,22 @@ public:
     if ((p8inf = EVP_PKEY2PKCS8(this->key)) == NULL)
       throw std::runtime_error("EVP_PKEY2PKCS8");
 
+    // FIXME: passphrase!
     if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio, p8inf))
       throw std::runtime_error("i2d_PKCS8_PRIV_KEY_INFO_bio");
 
-    string s = bio2string(bio);
+
+    int len = BIO_pending(bio);
+    if (len < 0)
+      throw std::runtime_error("BIO_pending");
+
+    char buf[len+1];
+    memset(buf, '\0', len+1);
+    BIO_read(bio, buf, len);
     BIO_free(bio);
 
     unsigned char md[SHA_DIGEST_LENGTH];
-    if (!EVP_Digest(s.c_str(), s.length(), md, NULL, EVP_sha1(), NULL))
+    if (!EVP_Digest(buf, len, md, NULL, EVP_sha1(), NULL))
       throw std::runtime_error("EVP_Digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
