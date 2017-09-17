@@ -34,7 +34,9 @@ int main() {
     if (file.read(buffer.data(), size))
     {
       // cout<<buffer.data();
-      Key key = Key(buffer.data());
+      Key key = Key(buffer.data(), "dory");
+      cout << key.getPrivateKeyString() << endl;
+      cout << key.getPrivateKeyPrint() << endl;
       cout << key.getPrivateKeyIdentifier() << endl;
     }
   } catch(std::exception const& e) {
@@ -48,7 +50,8 @@ int main() {
 #ifdef TEST_PRIVATE_KEY_IDENTIFIER
   // openssl pkcs8 -in rootca.key -inform PEM -outform DER -topk8 -nocrypt | openssl sha1 -c
   try {
-    Key key = Key(2048);
+    Key key = Key(2048, "aes256", "dory");
+    cout << key.getPrivateKeyString() << endl;
     cout << key.getPrivateKeyIdentifier() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
