@@ -16,6 +16,8 @@
 #include <openssl/err.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/pkcs12.h>
+
 
 namespace certificate {
 using namespace std;
@@ -197,7 +199,6 @@ static std::string bio2string(BIO* bio) {
 class Key {
 public:
   Key(const int kbits, const string& cipher = "", const string& passphrase = "") {
-    bool usePassphrase = false;
     if (kbits == 0)  // empty key.
         return;
 
@@ -205,7 +206,7 @@ public:
       throw std::runtime_error("the key is set");
 
     if (!cipher.empty())
-      usePassphrase = true;
+      this->encrypted = true;
 
     RSA* rsa = RSA_new();
     BIGNUM* bn = BN_new();
@@ -219,7 +220,7 @@ public:
       throw std::runtime_error("BIO_new");
 
     const EVP_CIPHER *enc = NULL;
-    if (usePassphrase) {
+    if (this->encrypted) {
       if ((enc = EVP_get_cipherbyname(cipher.c_str())) == NULL)
         throw std::runtime_error("EVP_get_cipherbyname");
     }
@@ -250,6 +251,9 @@ public:
     if (this->key != NULL)
       throw std::runtime_error("the key is set");
 
+    if (!passphrase.empty())
+      this->encrypted = true;
+
     this->pri_bio = BIO_new_mem_buf(privateKey.c_str(), -1);
     if (!this->pri_bio)
       throw std::runtime_error("BIO_new_mem_buf");
@@ -272,8 +276,10 @@ public:
   }
   ~Key() {
     BIO_free(pri_bio);
+    BIO_free(pri_der_bio);
     BIO_free(pub_bio);
     EVP_PKEY_free(key);
+    PKCS8_PRIV_KEY_INFO_free(p8inf);
     X509_free(x509);
     X509_REQ_free(x509_req);
     NCONF_free(conf);
@@ -748,26 +754,19 @@ public:
     if (this->key == NULL)
       throw std::runtime_error("key is null");
 
-    BIO *bio = BIO_new(BIO_s_mem());
-    PKCS8_PRIV_KEY_INFO *p8inf = NULL;
+    // get original private key without passphrase
+    if (pri_der_bio == NULL) {
+      pri_der_bio = BIO_new(BIO_s_mem());
+      topk8(pri_der_bio, "");
+    }
 
-    // Turn a private key into a PKCS8 structure
-    if ((p8inf = EVP_PKEY2PKCS8(this->key)) == NULL)
-      throw std::runtime_error("EVP_PKEY2PKCS8");
-
-    // FIXME: passphrase!
-    if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio, p8inf))
-      throw std::runtime_error("i2d_PKCS8_PRIV_KEY_INFO_bio");
-
-
-    int len = BIO_pending(bio);
+    int len = BIO_pending(pri_der_bio);
     if (len < 0)
       throw std::runtime_error("BIO_pending");
 
     char buf[len+1];
     memset(buf, '\0', len+1);
-    BIO_read(bio, buf, len);
-    BIO_free(bio);
+    BIO_read(pri_der_bio, buf, len);
 
     unsigned char md[SHA_DIGEST_LENGTH];
     if (!EVP_Digest(buf, len, md, NULL, EVP_sha1(), NULL))
@@ -862,16 +861,59 @@ public:
     BIO_free(in);
   }
 
+  void topk8(BIO* bio, const string& passphrase = "") {
+    if (this->key == NULL)
+      throw std::runtime_error("key is null");
+
+    // Turn a private key into a PKCS8 structure
+    if (this->p8inf == NULL) {
+      if ((this->p8inf = EVP_PKEY2PKCS8(this->key)) == NULL)
+        throw std::runtime_error("EVP_PKEY2PKCS8");
+    }
+
+    if (passphrase.empty()) {
+      if (!i2d_PKCS8_PRIV_KEY_INFO_bio(bio, this->p8inf))
+        throw std::runtime_error("i2d_PKCS8_PRIV_KEY_INFO_bio");
+
+      return;
+    }
+
+    // to encrypt
+    int pbe_nid = -1;
+    X509_SIG *p8 = NULL;
+    const EVP_CIPHER *cipher = EVP_aes_256_cbc();
+    X509_ALGOR *pbe = PKCS5_pbe2_set_iv(cipher,
+                                        PKCS12_DEFAULT_ITER,
+                                        NULL,
+                                        0,
+                                        NULL,
+                                        pbe_nid);
+    if (pbe == NULL)
+        throw std::runtime_error("PKCS5_pbe2_set_iv");
+
+    // app_RAND_load_file(NULL, 0);
+    p8 = PKCS8_set0_pbe(passphrase.c_str(), passphrase.length(), p8inf, pbe);
+    if (p8 == NULL) {
+        X509_ALGOR_free(pbe);
+        throw std::runtime_error("PKCS8_set0_pbe");
+    }
+    // app_RAND_write_file(NULL);
+    i2d_PKCS8_bio(bio, p8);
+  }
+
 private:
   EVP_PKEY *key  = NULL;
+  PKCS8_PRIV_KEY_INFO *p8inf = NULL;
   X509_PUBKEY *pubkey = NULL;
   std::string privateKey;
   std::string publicKey;
   std::string request;
   std::string certificate;
+  bool encrypted = false;
 
   int kbits = 0;
   BIO* pri_bio  = NULL;
+  BIO* pri_der_bio = NULL;
   BIO* pub_bio = NULL;
   X509* x509 = NULL;
   X509_REQ* x509_req = NULL;
