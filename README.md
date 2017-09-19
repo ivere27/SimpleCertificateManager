@@ -1,6 +1,6 @@
 # SimpleCertificateManager
 * your own ROOT CA(self-signed) and certificates signed by the ROOT CA
-* x509 certificate manager based on openssl
+* x509 certificate manager based on openssl 1.1.0f
 * a single header file(c++ 11)
 
 ## how to use
