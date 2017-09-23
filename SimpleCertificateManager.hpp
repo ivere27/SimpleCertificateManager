@@ -193,7 +193,7 @@ static std::string bio2string(BIO* bio) {
   memset(buf, '\0', len+1);
   BIO_read(bio, buf, len);
 
-  return buf;
+  return std::string(buf, len);
 }
 
 class Key {
@@ -764,12 +764,9 @@ public:
     if (len < 0)
       throw std::runtime_error("BIO_pending");
 
-    char buf[len+1];
-    memset(buf, '\0', len+1);
-    BIO_read(pri_der_bio, buf, len);
-
+    string s = bio2string(pri_der_bio);
     unsigned char md[SHA_DIGEST_LENGTH];
-    if (!EVP_Digest(buf, len, md, NULL, EVP_sha1(), NULL))
+    if (!EVP_Digest(s.c_str(), s.length(), md, NULL, EVP_sha1(), NULL))
       throw std::runtime_error("EVP_Digest");
 
     return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
