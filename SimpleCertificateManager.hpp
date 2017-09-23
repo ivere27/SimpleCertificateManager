@@ -750,7 +750,7 @@ public:
     return s;
   }
 
-  std::string getPrivateKeyIdentifier() {
+  std::string getPrivateKeyIdentifier(const string& digest = "sha1") {
     if (this->key == NULL)
       throw std::runtime_error("key is null");
 
@@ -764,38 +764,50 @@ public:
     if (len < 0)
       throw std::runtime_error("BIO_pending");
 
+    EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
+    if (md == NULL)
+      throw std::runtime_error("unknown digest");
+
     string s = bio2string(pri_der_bio);
-    unsigned char md[SHA_DIGEST_LENGTH];
-    if (!EVP_Digest(s.c_str(), s.length(), md, NULL, EVP_sha1(), NULL))
+    unsigned char buf[EVP_MD_size(md)];
+    if (!EVP_Digest(s.c_str(), s.length(), buf, NULL, md, NULL))
       throw std::runtime_error("EVP_Digest");
 
-    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+    return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
   }
 
-  std::string getCertificateIdentifier() {
+  std::string getCertificateIdentifier(const string& digest = "sha1") {
     if (this->x509 == NULL)
       throw std::runtime_error("x509 is null");
 
-    unsigned char md[SHA_DIGEST_LENGTH];
-    if (!X509_digest(this->x509, EVP_sha1(), md, NULL))
+    EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
+    if (md == NULL)
+      throw std::runtime_error("unknown digest");
+
+    unsigned char buf[EVP_MD_size(md)];
+    if (!X509_digest(this->x509, md, buf, NULL))
       throw std::runtime_error("X509_digest");
 
-    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+    return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
   }
 
-  std::string getRequestIdentifier() {
+  std::string getRequestIdentifier(const string& digest = "sha1") {
     if (this->x509_req == NULL)
       throw std::runtime_error("x509_req is null");
 
-    unsigned char md[SHA_DIGEST_LENGTH];
-    if (!X509_REQ_digest(this->x509_req, EVP_sha1(), md, NULL))
+    EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
+    if (md == NULL)
+      throw std::runtime_error("unknown digest");
+
+    unsigned char buf[EVP_MD_size(md)];
+    if (!X509_REQ_digest(this->x509_req, md, buf, NULL))
       throw std::runtime_error("X509_REQ_digest");
 
-    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+    return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
   }
 
  // X509v3 Authority/Subject Key Identifier
-  std::string getPublicKeyIdentifier() {
+  std::string getPublicKeyIdentifier(const string& digest = "sha1") {
     if (this->pubkey == NULL)
       throw std::runtime_error("pubkey is null");
 
@@ -805,24 +817,32 @@ public:
     if (!X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, this->pubkey))
       throw std::runtime_error("X509_PUBKEY_get0_param");
 
-    unsigned char md[SHA_DIGEST_LENGTH];
-    if (!EVP_Digest(pk, pklen, md, NULL, EVP_sha1(), NULL))
+    EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
+    if (md == NULL)
+      throw std::runtime_error("unknown digest");
+
+    unsigned char buf[EVP_MD_size(md)];
+    if (!EVP_Digest(pk, pklen, buf, NULL, md, NULL))
       throw std::runtime_error("EVP_Digest");
 
-    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+    return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
   }
 
   // X509v3 Authority/Subject Key Identifier
   // getPublicKeyIdentifier = getCertificateKeyIdentifier
-  std::string getCertificateKeyIdentifier() {
+  std::string getCertificateKeyIdentifier(const string& digest = "sha1") {
     if (this->x509 == NULL)
       throw std::runtime_error("x509 is null");
 
-    unsigned char md[SHA_DIGEST_LENGTH];
-    if (!X509_pubkey_digest(this->x509, EVP_sha1(), md, NULL))
+    EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
+    if (md == NULL)
+      throw std::runtime_error("unknown digest");
+
+    unsigned char buf[EVP_MD_size(md)];
+    if (!X509_pubkey_digest(this->x509, md, buf, NULL))
       throw std::runtime_error("X509_pubkey_digest");
 
-    return OPENSSL_buf2hexstr(md, SHA_DIGEST_LENGTH);
+    return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
   }
 
   int length() {
