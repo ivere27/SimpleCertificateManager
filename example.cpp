@@ -304,5 +304,23 @@ int main() {
   // check by $ openssl req -in other.csr -noout -text
   cout << otherRequest <<endl;
 
+
+  // create files
+  ofstream rootcaKey("rootca.key");
+  rootcaKey << rootPrivate;
+  rootcaKey.close();
+
+  ofstream rootcaCrt("rootca.crt");
+  rootcaCrt << rootCertificate;
+  rootcaCrt.close();
+
+  ofstream certKey("cert.key");
+  certKey << certPrivate;
+  certKey.close();
+
+  ofstream certCrt("cert.crt");
+  certCrt << certCertificate;
+  certCrt.close();
+
   return 0;
 }
