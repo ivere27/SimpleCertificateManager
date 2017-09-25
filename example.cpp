@@ -6,7 +6,42 @@
 using namespace std;
 using namespace certificate;
 
+std::string get_file_contents(const char *filename)
+{
+  std::ifstream in(filename, std::ios::in | std::ios::binary);
+  if (in) {
+    std::string contents;
+    in.seekg(0, std::ios::end);
+    contents.resize(in.tellg());
+    in.seekg(0, std::ios::beg);
+    in.read(&contents[0], contents.size());
+    in.close();
+
+    return (contents);
+  }
+  throw (errno);
+}
+
 int main() {
+
+#ifdef TEST_LOAD_PKCS12
+  // ./openssl pkcs12 -export -in rootca.crt -inkey rootca.key -out root.p12
+  // ./openssl pkcs12 -export -in cert.crt -inkey cert.key  -certfile rootca.crt -out file.p12
+  try {
+    Key key = Key(get_file_contents("file.p12"), "", FORMAT_PKCS12);
+    cout << key.getPrivateKeyString() << endl;
+    cout << key.getPrivateKeyPrint() << endl;
+    cout << key.getPrivateKeyIdentifier() << endl;
+    cout << key.getCertificateString() << endl;
+    cout << key.getCertificatePrint() << endl;
+    cout << key.getCertificateIdentifier() << endl;
+    cout << key.getCertificateKeyIdentifier() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+  return 0;
+#endif // TEST_LOAD_PKCS12
+
 #ifdef TEST_PRIVATE_KEY_PASSPHRASE
   try {
     Key key = Key(2048, "aes256", "dory");
@@ -34,19 +69,10 @@ int main() {
 
 #ifdef TEST_PRIVATE_KEY_IDENTIFIER_FILE
   try {
-    ifstream file("rootca.key", ios::binary | ios::ate);
-    streamsize size = file.tellg();
-    file.seekg(0, ios::beg);
-
-    vector<char> buffer(size);
-    if (file.read(buffer.data(), size))
-    {
-      // cout<<buffer.data();
-      Key key = Key(buffer.data(), "dory");
-      cout << key.getPrivateKeyString() << endl;
-      cout << key.getPrivateKeyPrint() << endl;
-      cout << key.getPrivateKeyIdentifier() << endl;
-    }
+    Key key = Key(get_file_contents("rootca.key"), "dory");
+    cout << key.getPrivateKeyString() << endl;
+    cout << key.getPrivateKeyPrint() << endl;
+    cout << key.getPrivateKeyIdentifier() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }
@@ -69,21 +95,12 @@ int main() {
 
 #ifdef TEST_CERTIFICATE_KEY_IDENTIFIER
   try {
-    ifstream file("test.crt", ios::binary | ios::ate);
-    streamsize size = file.tellg();
-    file.seekg(0, ios::beg);
-
-    vector<char> buffer(size);
-    if (file.read(buffer.data(), size))
-    {
-      // cout<<buffer.data();
-      Key key = Key();
-      key.loadCertificate(buffer.data());
-      cout << key.getCertificatePrint() << endl;
-      cout << key.getCertificateKeyIdentifier() << endl;
-      cout << key.getPublicKeyIdentifier() << endl;
-      cout << "length : " << key.length() << endl;
-    }
+    Key key = Key();
+    key.loadCertificate(get_file_contents("test.crt"));
+    cout << key.getCertificatePrint() << endl;
+    cout << key.getCertificateKeyIdentifier() << endl;
+    cout << key.getPublicKeyIdentifier() << endl;
+    cout << "length : " << key.length() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }

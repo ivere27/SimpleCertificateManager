@@ -22,6 +22,9 @@
 namespace certificate {
 using namespace std;
 
+#define FORMAT_PEM     1
+#define FORMAT_PKCS12  2
+
 #define EXTENSIONS_DEFAULT_CERT    "usr_cert"
 #define EXTENSIONS_DEFAULT_REQUEST "v3_req"
 #define EXTENSIONS_DEFAULT_ROOTCA  "v3_ca"
@@ -235,7 +238,7 @@ public:
                                       enc,
                                       (char*)passphrase.c_str(),
                                       passphrase.size(), NULL, NULL) != 1)
-      throw std::runtime_error("RSA_generate_key_ex");
+      throw std::runtime_error("PEM_write_bio_PKCS8PrivateKey");
 
     if(!X509_PUBKEY_set(&pubkey, key))
       throw std::runtime_error("X509_PUBKEY_set");
@@ -246,36 +249,79 @@ public:
     BN_free(bn);
     BIO_free(bio);
   }
-  Key(const string& privateKey = "", const string& passphrase = "") {
+  Key(const string& privateKey = "", const string& passphrase = "", int format = FORMAT_PEM) {
     if (privateKey.empty())  // empty key.
       return;
-
-    if (this->key != NULL)
-      throw std::runtime_error("the key is set");
 
     if (!passphrase.empty())
       this->encrypted = true;
 
-    BIO* bio = BIO_new_mem_buf(privateKey.c_str(), -1);
+    BIO* bio = BIO_new_mem_buf(privateKey.data(), privateKey.size());
     if (!bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    if ((this->key = PEM_read_bio_PrivateKey(bio,
-                                             NULL,
-                                             0,
-                                             (void*)passphrase.c_str())) == NULL)
+    if (format == FORMAT_PEM) {
+      if ((this->key = PEM_read_bio_PrivateKey(bio,
+                                               NULL,
+                                               0,
+                                               (void*)passphrase.c_str())) == NULL)
         throw std::runtime_error("PEM_read_bio_PrivateKey");;
 
-    RSA* rsa = EVP_PKEY_get0_RSA(this->key);
-    if (!RSA_check_key(rsa))
-      throw std::runtime_error("RSA_check_key");
+      RSA* rsa = EVP_PKEY_get0_RSA(this->key);
+      if (!RSA_check_key(rsa))
+        throw std::runtime_error("RSA_check_key");
 
-    if(!X509_PUBKEY_set(&this->pubkey, this->key))
-      throw std::runtime_error("X509_PUBKEY_set");
+      if(!X509_PUBKEY_set(&this->pubkey, this->key))
+        throw std::runtime_error("X509_PUBKEY_set");
 
-    this->privateKey = privateKey;
-    this->kbits =  RSA_bits(rsa);
+      this->privateKey = privateKey;
+      this->kbits =  RSA_bits(rsa);
+
+    } else if (format == FORMAT_PKCS12) {
+      PKCS12 *p12 = NULL;
+      if ((p12 = d2i_PKCS12_bio(bio, NULL)) == NULL)
+        throw std::runtime_error("d2i_PKCS12_bio");
+
+      STACK_OF(X509) *certs;
+      if (!PKCS12_parse(p12, passphrase.c_str(), &this->key, &this->x509, &certs))
+        throw std::runtime_error("PKCS12_parse");
+
+      if (this->key != NULL) {
+        RSA* rsa = EVP_PKEY_get0_RSA(this->key);
+        if (!RSA_check_key(rsa))
+          throw std::runtime_error("RSA_check_key");
+
+        if(!X509_PUBKEY_set(&this->pubkey, this->key))
+          throw std::runtime_error("X509_PUBKEY_set");
+
+        // get privateKey PEM string
+        BIO* pri_bio;
+        if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
+          throw std::runtime_error("BIO_new");
+
+        if (PEM_write_bio_PKCS8PrivateKey(pri_bio,
+                                          this->key,
+                                          NULL,
+                                          NULL,
+                                          0, NULL, NULL) != 1)
+          throw std::runtime_error("PEM_write_bio_PKCS8PrivateKey");
+
+        this->privateKey = bio2string(pri_bio);
+        this->kbits =  RSA_bits(rsa);
+
+        BIO_free(pri_bio);
+      }
+
+      // store certs in vector
+      for (int i = 0; i < sk_X509_num(certs); i++) {
+        this->ca.push_back(sk_X509_value(certs, i));
+      }
+
+    } else {
+      throw std::runtime_error("unknown format");
+    }
   }
+
   ~Key() {
     EVP_PKEY_free(key);
     PKCS8_PRIV_KEY_INFO_free(p8inf);
@@ -311,7 +357,7 @@ public:
                                       enc,
                                       (char*)passphrase.c_str(),
                                       passphrase.size(), NULL, NULL) != 1)
-      throw std::runtime_error("RSA_generate_key_ex");
+      throw std::runtime_error("PEM_write_bio_PKCS8PrivateKey");
 
 
     this->privateKey = bio2string(bio);
@@ -736,22 +782,14 @@ public:
 
   // load the private key's own certificate.
   void loadCertificate(const string& certificate) {
-    if (certificate.empty())
-      throw std::runtime_error("certificate is null");
+    if (this->x509 != NULL)
+      throw std::runtime_error("certificate is not null");
 
     BIO* crt_bio = BIO_new_mem_buf(certificate.c_str(), -1);
     X509* x509 = PEM_read_bio_X509(crt_bio, NULL, NULL, NULL);
     BIO_free(crt_bio);
     if (x509 == NULL)
       throw std::runtime_error("PEM_read_bio_X509");
-
-    // re-generate pem and then overwrite 'certificate' variable
-    BIO *bio = BIO_new(BIO_s_mem());
-    if (!PEM_write_bio_X509(bio, x509))
-      throw std::runtime_error("PEM_write_bio_X509");
-
-    this->certificate = bio2string(bio);
-    BIO_free(bio);
 
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_get_X509_PUBKEY(x509);
@@ -763,13 +801,21 @@ public:
   }
 
   // CAUTION : only use this API when loadCertificate()
+  //           or new Key(FORMAT_PKCS12)
   //           this is SUBJECT's certificate. not ISSUER!
   // return Certificate.
   std::string getCertificateString() {
-      if (this->certificate.empty())
-        throw std::runtime_error("certificate is null");
+    if (this->x509 == NULL)
+      throw std::runtime_error("certificate is null");
 
-      return certificate;
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (!PEM_write_bio_X509(bio, x509))
+      throw std::runtime_error("PEM_write_bio_X509");
+
+    string s = bio2string(bio);
+    BIO_free(bio);
+
+    return s;
   }
 
   std::string getCertificatePrint() {
@@ -964,6 +1010,7 @@ private:
   X509* x509 = NULL;
   X509_REQ* x509_req = NULL;
   CONF *conf = NULL;
+  vector<X509*> ca;
 
   unsigned long chtype = MBSTRING_UTF8; // PKIX recommendation
 };
