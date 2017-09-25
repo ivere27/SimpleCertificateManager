@@ -259,6 +259,12 @@ clang++ -std=c++11 -g example.cpp libcrypto.dylib -I../openssl/include -Wl,-rpat
 && ./a.out
 ```
 
+## WIP- test
+```bash
+cd test
+clang++ -std=c++11 test.cpp libcrypto.so.1.1 -o test -I.. -I../../openssl/include -Wl,-rpath,. && ./test
+```
+
 ## about
 * a project of 'Second Compiler'.
 
