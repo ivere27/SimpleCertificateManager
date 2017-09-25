@@ -1010,6 +1010,21 @@ public:
     this->ca.push_back(x509);
   }
 
+  string getCertificateAuthoritiesString() {
+    string s = "";
+
+    for (int i = 0; i<this->ca.size();i++) {
+      BIO *bio = BIO_new(BIO_s_mem());
+      if (!PEM_write_bio_X509(bio, ca[i]))
+        throw std::runtime_error("PEM_write_bio_X509");
+
+      s += bio2string(bio);
+      BIO_free(bio);
+    }
+
+    return s;
+  }
+
   string getPkcs12(const string& passphrase = "") {
     BIO *bio = BIO_new(BIO_s_mem());
     topk12(bio, passphrase);
@@ -1030,7 +1045,6 @@ public:
 
     if (this->key == NULL && this->x509 == NULL)
       throw std::runtime_error("Nothing to do!");
-
 
     STACK_OF(X509) *certs = NULL;
     if (this->ca.size() > 0) {

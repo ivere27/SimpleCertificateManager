@@ -37,6 +37,9 @@ int main() {
     cout << key.getCertificateIdentifier() << endl;
     cout << key.getCertificateKeyIdentifier() << endl;
 
+    // add another certificate
+    key.addCertificateAuthority(get_file_contents("GoogleInternetAuthorityG2.crt"));
+    cout << key.getCertificateAuthoritiesString() << endl;
     // openssl pkcs12 -info -in temp.p12
     string pkcs12 =  key.getPkcs12("dory");
     ofstream p12file("temp.p12");
