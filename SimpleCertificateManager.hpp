@@ -996,6 +996,75 @@ public:
     i2d_PKCS8_bio(bio, p8);
   }
 
+  // CA
+  void clearCertificateAuthority() {
+    this->ca.clear();
+  }
+  void addCertificateAuthority(const string& certificate) {
+    BIO* crt_bio = BIO_new_mem_buf(certificate.c_str(), -1);
+    X509* x509 = PEM_read_bio_X509(crt_bio, NULL, NULL, NULL);
+    BIO_free(crt_bio);
+    if (x509 == NULL)
+      throw std::runtime_error("PEM_read_bio_X509");
+
+    this->ca.push_back(x509);
+  }
+
+  string getPkcs12(const string& passphrase = "") {
+    BIO *bio = BIO_new(BIO_s_mem());
+    topk12(bio, passphrase);
+
+    string s = bio2string(bio);
+    BIO_free(bio);
+
+    return s;
+  }
+
+  // export
+  void topk12(BIO* bio, const string& passphrase = "") {
+    int key_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+    int cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+    int iter = PKCS12_DEFAULT_ITER;
+    int keytype = 0;  // MS key usage constants
+    int maciter = PKCS12_DEFAULT_ITER;
+
+    if (this->key == NULL && this->x509 == NULL)
+      throw std::runtime_error("Nothing to do!");
+
+
+    STACK_OF(X509) *certs = NULL;
+    if (this->ca.size() > 0) {
+      certs = sk_X509_new_null();
+      for (int i = 0; i<this->ca.size();i++)
+        sk_X509_push(certs, ca[i]);
+    }
+
+    PKCS12 *p12 = NULL;
+    p12 = PKCS12_create(passphrase.c_str(),
+                        NULL, // name
+                        this->key,
+                        this->x509,
+                        certs,
+                        key_pbe,
+                        cert_pbe,
+                        iter,
+                        -1,
+                        keytype);
+    if (!p12)
+      throw std::runtime_error("PKCS12_create");
+
+    PKCS12_set_mac(p12,
+                   passphrase.c_str(),
+                   -1,
+                   NULL,
+                   0,
+                   maciter,
+                   NULL); // const EVP_MD *macmd
+
+
+    i2d_PKCS12_bio(bio, p12);
+  }
+
 private:
   EVP_PKEY *key  = NULL;
   PKCS8_PRIV_KEY_INFO *p8inf = NULL;

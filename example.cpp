@@ -36,6 +36,12 @@ int main() {
     cout << key.getCertificatePrint() << endl;
     cout << key.getCertificateIdentifier() << endl;
     cout << key.getCertificateKeyIdentifier() << endl;
+
+    // openssl pkcs12 -info -in temp.p12
+    string pkcs12 =  key.getPkcs12("dory");
+    ofstream p12file("temp.p12");
+    p12file << pkcs12;
+    p12file.close();
   } catch(std::exception const& e) {
     cout << e.what();
   }
