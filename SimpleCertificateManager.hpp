@@ -216,7 +216,8 @@ public:
     if (RSA_generate_key_ex(rsa, kbits, bn, NULL) != 1)
       throw std::runtime_error("RSA_generate_key_ex");
 
-    if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
+    BIO* bio;
+    if ((bio = BIO_new(BIO_s_mem())) == NULL )
       throw std::runtime_error("BIO_new");
 
     const EVP_CIPHER *enc = NULL;
@@ -229,7 +230,7 @@ public:
     EVP_PKEY_assign_RSA(key, rsa);
 
     // see PEM_ASN1_write_bio in pem_lib.c
-    if (PEM_write_bio_PKCS8PrivateKey(pri_bio,
+    if (PEM_write_bio_PKCS8PrivateKey(bio,
                                       key,
                                       enc,
                                       (char*)passphrase.c_str(),
@@ -239,10 +240,11 @@ public:
     if(!X509_PUBKEY_set(&pubkey, key))
       throw std::runtime_error("X509_PUBKEY_set");
 
-    BN_free(bn);
-
     this->kbits = kbits;
-    this->privateKey = bio2string(pri_bio);
+    this->privateKey = bio2string(bio);
+
+    BN_free(bn);
+    BIO_free(bio);
   }
   Key(const string& privateKey = "", const string& passphrase = "") {
     if (privateKey.empty())  // empty key.
@@ -254,11 +256,11 @@ public:
     if (!passphrase.empty())
       this->encrypted = true;
 
-    this->pri_bio = BIO_new_mem_buf(privateKey.c_str(), -1);
-    if (!this->pri_bio)
+    BIO* bio = BIO_new_mem_buf(privateKey.c_str(), -1);
+    if (!bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    if ((this->key = PEM_read_bio_PrivateKey(this->pri_bio,
+    if ((this->key = PEM_read_bio_PrivateKey(bio,
                                              NULL,
                                              0,
                                              (void*)passphrase.c_str())) == NULL)
@@ -275,9 +277,6 @@ public:
     this->kbits =  RSA_bits(rsa);
   }
   ~Key() {
-    BIO_free(pri_bio);
-    BIO_free(pri_der_bio);
-    BIO_free(pub_bio);
     EVP_PKEY_free(key);
     PKCS8_PRIV_KEY_INFO_free(p8inf);
     X509_free(x509);
@@ -286,7 +285,42 @@ public:
   }
 
   std::string getPrivateKeyString() {
+    if (this->key == NULL)
+      throw std::runtime_error("key is null");
+
     return privateKey;
+  }
+
+  void resetPrivateKeyPassphrase(const string& cipher = "", const string& passphrase = "") {
+    if (this->key == NULL)
+      throw std::runtime_error("key is null");
+
+    // enrypte by given cipher and passphrase
+    const EVP_CIPHER *enc = NULL;
+    if (!passphrase.empty()) {
+      if ((enc = EVP_get_cipherbyname(cipher.c_str())) == NULL)
+        throw std::runtime_error("EVP_get_cipherbyname");
+    }
+
+    BIO* bio;
+    if ((bio = BIO_new(BIO_s_mem())) == NULL )
+      throw std::runtime_error("BIO_new");
+
+    if (PEM_write_bio_PKCS8PrivateKey(bio,
+                                      this->key,
+                                      enc,
+                                      (char*)passphrase.c_str(),
+                                      passphrase.size(), NULL, NULL) != 1)
+      throw std::runtime_error("RSA_generate_key_ex");
+
+
+    this->privateKey = bio2string(bio);
+    if (passphrase.empty())
+      this->encrypted = false;
+    else
+      this->encrypted = true;
+
+    BIO_free(bio);
   }
 
   std::string getPrivateKeyPrint(const int indent = 0) {
@@ -309,11 +343,11 @@ public:
     if (this->key != NULL)
       throw std::runtime_error("the key is set");
 
-    this->pub_bio = BIO_new_mem_buf(publicKey.c_str(), -1);
-    if (!pub_bio)
+    BIO* bio = BIO_new_mem_buf(publicKey.c_str(), -1);
+    if (!bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    this->key = PEM_read_bio_PUBKEY(this->pub_bio, NULL,
+    this->key = PEM_read_bio_PUBKEY(bio, NULL,
                                     NULL,
                                     0);
 
@@ -325,8 +359,9 @@ public:
       throw std::runtime_error("X509_PUBKEY_set");
 
     this->kbits = EVP_PKEY_bits(X509_PUBKEY_get0(this->pubkey));
-
     this->publicKey = publicKey;
+
+    BIO_free(bio);
   }
 
   std::string getPublicKeyString() {
@@ -336,18 +371,19 @@ public:
     if (!this->publicKey.empty())
       return publicKey;
 
-    if (this->pub_bio == NULL) {
-      this->pub_bio = BIO_new(BIO_s_mem());
-      if (this->pub_bio == NULL)
-        throw std::runtime_error("BIO_new");
+    BIO* bio = BIO_new(BIO_s_mem());
+    if (bio == NULL)
+      throw std::runtime_error("BIO_new");
 
-      RSA* rsa = EVP_PKEY_get0_RSA(X509_PUBKEY_get0(this->pubkey));
+    RSA* rsa = EVP_PKEY_get0_RSA(X509_PUBKEY_get0(this->pubkey));
 
-      if (!PEM_write_bio_RSA_PUBKEY(this->pub_bio, rsa))
-        throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
-    }
+    if (!PEM_write_bio_RSA_PUBKEY(bio, rsa))
+      throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
 
-    return bio2string(this->pub_bio);
+    string s = bio2string(bio);
+    BIO_free(bio);
+
+    return s;
   }
 
   std::string getPublicKeyPrint(int indent = 0) {
@@ -755,20 +791,16 @@ public:
       throw std::runtime_error("key is null");
 
     // get original private key without passphrase
-    if (pri_der_bio == NULL) {
-      pri_der_bio = BIO_new(BIO_s_mem());
-      topk8(pri_der_bio, "");
-    }
-
-    int len = BIO_pending(pri_der_bio);
-    if (len < 0)
-      throw std::runtime_error("BIO_pending");
+    BIO* bio = BIO_new(BIO_s_mem());
+    topk8(bio, "");
 
     EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
     if (md == NULL)
       throw std::runtime_error("unknown digest");
 
-    string s = bio2string(pri_der_bio);
+    string s = bio2string(bio);
+    BIO_free(bio);
+
     unsigned char buf[EVP_MD_size(md)];
     if (!EVP_Digest(s.c_str(), s.length(), buf, NULL, md, NULL))
       throw std::runtime_error("EVP_Digest");
@@ -929,9 +961,6 @@ private:
   bool encrypted = false;
 
   int kbits = 0;
-  BIO* pri_bio  = NULL;
-  BIO* pri_der_bio = NULL;
-  BIO* pub_bio = NULL;
   X509* x509 = NULL;
   X509_REQ* x509_req = NULL;
   CONF *conf = NULL;

@@ -17,6 +17,14 @@ int main() {
 
     Key key2 = Key(pem.c_str(), "dory");
     cout << key2.getPrivateKeyIdentifier() << endl;
+
+    key2.resetPrivateKeyPassphrase();
+    cout << key2.getPrivateKeyString() << endl;
+    cout << key2.getPrivateKeyIdentifier() << endl;
+
+    key2.resetPrivateKeyPassphrase("aes256", "dory");
+    cout << key2.getPrivateKeyString() << endl;
+    cout << key2.getPrivateKeyIdentifier() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }
