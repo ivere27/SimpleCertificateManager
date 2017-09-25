@@ -244,6 +244,8 @@ public:
     this->kbits = kbits;
     this->privateKey = bio2string(pri_bio);
   }
+
+  // PEM
   Key(const string& privateKey = "", const string& passphrase = "") {
     if (privateKey.empty())  // empty key.
       return;
@@ -271,7 +273,19 @@ public:
     if(!X509_PUBKEY_set(&this->pubkey, this->key))
       throw std::runtime_error("X509_PUBKEY_set");
 
-    this->privateKey = privateKey;
+    // just make sure, pri_bio and privatekey are generated openssl API
+    BIO_free(this->pri_bio);
+    if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
+      throw std::runtime_error("BIO_new");
+
+    if (PEM_write_bio_PKCS8PrivateKey(this->pri_bio,
+                                      this->key,
+                                      NULL,
+                                      NULL,
+                                      0, NULL, NULL) != 1)
+      throw std::runtime_error("RSA_generate_key_ex");
+
+    this->privateKey = bio2string(pri_bio);
     this->kbits =  RSA_bits(rsa);
   }
   ~Key() {
@@ -288,6 +302,7 @@ public:
   std::string getPrivateKeyString() {
     return privateKey;
   }
+
 
   std::string getPrivateKeyPrint(const int indent = 0) {
     if (this->key == NULL)
