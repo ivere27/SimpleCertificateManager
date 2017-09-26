@@ -24,7 +24,8 @@ namespace certificate {
 using namespace std;
 
 #define FORMAT_PEM     1
-#define FORMAT_PKCS12  2
+#define FORMAT_DER     2  // FORMAT_ASN1
+#define FORMAT_PKCS12  3
 
 #define EXTENSIONS_DEFAULT_CERT    "usr_cert"
 #define EXTENSIONS_DEFAULT_REQUEST "v3_req"
@@ -261,12 +262,23 @@ public:
     if (!bio)
       throw std::runtime_error("BIO_new_mem_buf");
 
-    if (format == FORMAT_PEM) {
-      if ((this->key = PEM_read_bio_PrivateKey(bio,
-                                               NULL,
-                                               0,
-                                               (void*)passphrase.c_str())) == NULL)
-        throw std::runtime_error("PEM_read_bio_PrivateKey");;
+    if (format == FORMAT_PEM || format == FORMAT_DER) {
+      if (format == FORMAT_PEM) {
+        if ((this->key = PEM_read_bio_PrivateKey(bio,
+                                                 NULL,
+                                                 0,
+                                                 (void*)passphrase.c_str())) == NULL)
+          throw std::runtime_error("PEM_read_bio_PrivateKey");
+      } else if (format == FORMAT_DER) {
+        if (!passphrase.empty())
+          throw std::runtime_error("encrypted DER is not supported.");
+
+        if ((this->key = d2i_PrivateKey_bio(bio, NULL)) == NULL)
+          throw std::runtime_error("d2i_PrivateKey_bio");
+      }
+      else
+        assert(0);
+
 
       RSA* rsa = EVP_PKEY_get0_RSA(this->key);
       if (!RSA_check_key(rsa))

@@ -23,6 +23,19 @@ std::string get_file_contents(const char *filename)
 }
 
 int main() {
+#ifdef TEST_LOAD_PRIVATE_KEY_DER
+  // ./openssl rsa -in rootca.key -out rootca.der -outform DER
+  try {
+    Key key = Key(get_file_contents("rootca.der"), "", FORMAT_DER);
+    cout << key.getPrivateKeyString() << endl;
+    cout << key.getPrivateKeyPrint() << endl;
+    cout << key.getPrivateKeyIdentifier() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
+  return 0;
+#endif
 
 #ifdef TEST_LOAD_PKCS12
   // ./openssl pkcs12 -export -in rootca.crt -inkey rootca.key -out root.p12
