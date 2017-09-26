@@ -201,6 +201,21 @@ static std::string bio2string(BIO* bio) {
   return std::string(buf, len);
 }
 
+static std::string digestX509Pubkey(X509* x509, const string& digest = "sha1") {
+  if (x509 == NULL)
+    throw std::runtime_error("x509 is null");
+
+  EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
+  if (md == NULL)
+    throw std::runtime_error("unknown digest");
+
+  unsigned char buf[EVP_MD_size(md)];
+  if (!X509_pubkey_digest(x509, md, buf, NULL))
+    throw std::runtime_error("X509_pubkey_digest");
+
+  return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
+}
+
 class Key {
 public:
   Key(const int kbits, const string& cipher = "", const string& passphrase = "") {
@@ -251,7 +266,7 @@ public:
     BN_free(bn);
     BIO_free(bio);
   }
-  Key(const string& privateKey = "", const string& passphrase = "", int format = FORMAT_PEM) {
+  Key(const string& privateKey = "", const string& passphrase = "", const int format = FORMAT_PEM) {
     if (privateKey.empty())  // empty key.
       return;
 
@@ -326,9 +341,12 @@ public:
         BIO_free(pri_bio);
       }
 
-      // verify pubkey is same if key and x509 are included.
+      // verify pubkeys are same if key and x509 are both included.
       if (this->key != NULL && this->x509 != NULL) {
-        X509_PUBKEY *x509_pubkey = X509_get_X509_PUBKEY(x509);
+        string s1 = getPublicKeyIdentifier();
+        string s2 = getCertificateKeyIdentifier();
+        if (s1.compare(s2) != 0)
+          throw std::runtime_error("public key is not matched with the certificate.");
       }
 
       // if only contains a certificate.
@@ -811,15 +829,34 @@ public:
   }
 
   // load the private key's own certificate.
-  void loadCertificate(const string& certificate) {
+  void loadCertificate(const string& certificate, const int format = FORMAT_PEM) {
     if (this->x509 != NULL)
       throw std::runtime_error("certificate is not null");
 
-    BIO* crt_bio = BIO_new_mem_buf(certificate.c_str(), -1);
-    X509* x509 = PEM_read_bio_X509(crt_bio, NULL, NULL, NULL);
-    BIO_free(crt_bio);
-    if (x509 == NULL)
-      throw std::runtime_error("PEM_read_bio_X509");
+    BIO* crt_bio = BIO_new_mem_buf(certificate.data(), certificate.size());
+    X509* x509 = NULL;
+
+    if (format == FORMAT_PEM) {
+      x509 = PEM_read_bio_X509(crt_bio, NULL, NULL, NULL);
+      BIO_free(crt_bio);
+      if (x509 == NULL)
+        throw std::runtime_error("PEM_read_bio_X509");
+    } else if (format == FORMAT_DER) {
+      x509 = d2i_X509_bio(crt_bio, NULL);
+      BIO_free(crt_bio);
+      if (x509 == NULL)
+        throw std::runtime_error("PEM_read_bio_X509");
+    } else
+      assert(0);
+
+    // check pubkey
+    if (this->key != NULL) {
+      string s1 = getPublicKeyIdentifier();
+      string s2 = digestX509Pubkey(x509);
+      if (s1.compare(s2) != 0)
+        throw std::runtime_error("public key is not matched with the certificate.");
+
+    }
 
     X509_PUBKEY_free(this->pubkey);
     this->pubkey = X509_get_X509_PUBKEY(x509);
@@ -939,18 +976,7 @@ public:
   // X509v3 Authority/Subject Key Identifier
   // getPublicKeyIdentifier = getCertificateKeyIdentifier
   std::string getCertificateKeyIdentifier(const string& digest = "sha1") {
-    if (this->x509 == NULL)
-      throw std::runtime_error("x509 is null");
-
-    EVP_MD const *md = EVP_get_digestbyname(digest.c_str());
-    if (md == NULL)
-      throw std::runtime_error("unknown digest");
-
-    unsigned char buf[EVP_MD_size(md)];
-    if (!X509_pubkey_digest(this->x509, md, buf, NULL))
-      throw std::runtime_error("X509_pubkey_digest");
-
-    return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
+    return digestX509Pubkey(this->x509, digest);
   }
 
   int length() {

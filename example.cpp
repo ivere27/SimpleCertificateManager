@@ -23,6 +23,23 @@ std::string get_file_contents(const char *filename)
 }
 
 int main() {
+
+#ifdef TEST_LOAD_CERTIFICATE_DER
+  // ./openssl x509 -outform der -in rootca.crt -out rootca.crt.der
+  try {
+    Key key = Key();
+    key.loadCertificate(get_file_contents("rootca.crt.der"), FORMAT_DER);
+    cout << key.getCertificatePrint() << endl;
+    cout << key.getCertificateKeyIdentifier() << endl;
+    cout << key.getPublicKeyIdentifier() << endl;
+    cout << "length : " << key.length() << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
+  return 0;
+#endif // TEST_LOAD_CERTIFICATE_DER
+
 #ifdef TEST_LOAD_PRIVATE_KEY_DER
   // ./openssl rsa -in rootca.key -out rootca.der -outform DER
   try {
