@@ -283,10 +283,11 @@ public:
       if ((p12 = d2i_PKCS12_bio(bio, NULL)) == NULL)
         throw std::runtime_error("d2i_PKCS12_bio");
 
-      STACK_OF(X509) *certs;
+      STACK_OF(X509) *certs = NULL;
       if (!PKCS12_parse(p12, passphrase.c_str(), &this->key, &this->x509, &certs))
         throw std::runtime_error("PKCS12_parse");
 
+      // assign key if exists
       if (this->key != NULL) {
         RSA* rsa = EVP_PKEY_get0_RSA(this->key);
         if (!RSA_check_key(rsa))
@@ -313,11 +314,27 @@ public:
         BIO_free(pri_bio);
       }
 
-      // store certs in vector
-      for (int i = 0; i < sk_X509_num(certs); i++) {
-        this->ca.push_back(sk_X509_value(certs, i));
+      // verify pubkey is same if key and x509 are included.
+      if (this->key != NULL && this->x509 != NULL) {
+        X509_PUBKEY *x509_pubkey = X509_get_X509_PUBKEY(x509);
       }
 
+      // if only contains a certificate.
+      if (this->x509 != NULL && this->key == NULL) {
+        this->pubkey = X509_get_X509_PUBKEY(x509);
+        this->kbits = EVP_PKEY_bits(X509_PUBKEY_get0(this->pubkey));
+      }
+
+      // store certs in vector
+      if (certs && sk_X509_num(certs)) {
+          int ca_count = sk_X509_num(certs);
+          for (int i = 0; i < ca_count; i++) {
+              X509* c = sk_X509_value(certs, i);
+              this->ca.push_back(c);
+          }
+      }
+
+      // END OF FORMAT_PKCS12
     } else {
       throw std::runtime_error("unknown format");
     }
