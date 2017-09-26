@@ -51,6 +51,10 @@ int main() {
     cout << key.getPrivateKeyString() << endl;
     cout << key.getPrivateKeyPrint() << endl;
     cout << key.getPrivateKeyIdentifier() << endl;
+
+    ofstream certCrt("rootca.der2");
+    certCrt << key.getPrivateKeyEncode();
+    certCrt.close();
   } catch(std::exception const& e) {
     cout << e.what();
   }

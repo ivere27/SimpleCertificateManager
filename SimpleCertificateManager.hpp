@@ -385,6 +385,24 @@ public:
     return privateKey;
   }
 
+  std::string getPrivateKeyEncode() {
+    if (this->key == NULL)
+      throw std::runtime_error("key is null");
+
+    RSA* rsa = EVP_PKEY_get0_RSA(this->key);
+    if (!RSA_check_key(rsa))
+      throw std::runtime_error("RSA_check_key");
+
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (!i2d_RSAPrivateKey_bio(bio, rsa))
+      throw std::runtime_error("i2d_RSAPrivateKey_bio");
+
+    string s = bio2string(bio);
+    BIO_free(bio);
+
+    return s;
+  }
+
   void resetPrivateKeyPassphrase(const string& cipher = "", const string& passphrase = "") {
     if (this->key == NULL)
       throw std::runtime_error("key is null");
