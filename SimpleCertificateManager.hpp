@@ -885,6 +885,20 @@ public:
     return s;
   }
 
+  std::string getCertificateEncode() {
+    if (this->x509 == NULL)
+      throw std::runtime_error("certificate is null");
+
+    BIO *bio = BIO_new(BIO_s_mem());
+    if (!i2d_X509_bio(bio, x509))
+      throw std::runtime_error("i2d_X509_bio");
+
+    string s = bio2string(bio);
+    BIO_free(bio);
+
+    return s;
+  }
+
   std::string getCertificatePrint() {
     if (this->x509 == NULL)
       throw std::runtime_error("certificate is null");

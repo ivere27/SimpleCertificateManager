@@ -33,6 +33,10 @@ int main() {
     cout << key.getCertificateKeyIdentifier() << endl;
     cout << key.getPublicKeyIdentifier() << endl;
     cout << "length : " << key.length() << endl;
+
+    ofstream certCrt("rootca.crt.der2");
+    certCrt << key.getCertificateEncode();
+    certCrt.close();
   } catch(std::exception const& e) {
     cout << e.what();
   }
