@@ -1080,6 +1080,15 @@ public:
     i2d_PKCS12_bio(bio, p12);
   }
 
+  bool hasPrivateKey() {
+    return (this->key);
+  }
+  bool hasCertificate() {
+    return (this->x509);
+  }
+  bool hasRequest() {
+    return (this->x509_req);
+  }
 private:
   EVP_PKEY *key  = NULL;
   PKCS8_PRIV_KEY_INFO *p8inf = NULL;
