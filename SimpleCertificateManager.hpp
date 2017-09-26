@@ -9,8 +9,9 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-#include <string>
 #include <stdexcept>
+#include <string>
+#include <vector>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
