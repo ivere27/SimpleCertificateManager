@@ -302,7 +302,6 @@ public:
       if(!X509_PUBKEY_set(&this->pubkey, this->key))
         throw std::runtime_error("X509_PUBKEY_set");
 
-      this->privateKey = privateKey;
       this->kbits =  RSA_bits(rsa);
 
     } else if (format == FORMAT_PKCS12) {
@@ -314,7 +313,11 @@ public:
       if (!PKCS12_parse(p12, passphrase.c_str(), &this->key, &this->x509, &certs))
         throw std::runtime_error("PKCS12_parse");
 
-      // assign key if exists
+      if (this->key == NULL && this->x509 == NULL)
+        throw std::runtime_error("no data in pkcs#12 file");
+
+
+        // assign key if exists
       if (this->key != NULL) {
         RSA* rsa = EVP_PKEY_get0_RSA(this->key);
         if (!RSA_check_key(rsa))
@@ -323,22 +326,7 @@ public:
         if(!X509_PUBKEY_set(&this->pubkey, this->key))
           throw std::runtime_error("X509_PUBKEY_set");
 
-        // get privateKey PEM string
-        BIO* pri_bio;
-        if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
-          throw std::runtime_error("BIO_new");
-
-        if (PEM_write_bio_PKCS8PrivateKey(pri_bio,
-                                          this->key,
-                                          NULL,
-                                          NULL,
-                                          0, NULL, NULL) != 1)
-          throw std::runtime_error("PEM_write_bio_PKCS8PrivateKey");
-
-        this->privateKey = bio2string(pri_bio);
         this->kbits =  RSA_bits(rsa);
-
-        BIO_free(pri_bio);
       }
 
       // verify pubkeys are same if key and x509 are both included.
@@ -363,11 +351,31 @@ public:
               this->ca.push_back(c);
           }
       }
-
       // END OF FORMAT_PKCS12
     } else {
       throw std::runtime_error("unknown format");
     }
+
+    // assign privateKey
+    if (format == FORMAT_PEM) {
+      this->privateKey = privateKey;  // preserve passphrase
+    } else {
+      // get privateKey PEM string
+      BIO* pri_bio;
+      if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
+        throw std::runtime_error("BIO_new");
+
+      if (PEM_write_bio_PKCS8PrivateKey(pri_bio,
+                                        this->key,
+                                        NULL,
+                                        NULL,
+                                        0, NULL, NULL) != 1)
+        throw std::runtime_error("PEM_write_bio_PKCS8PrivateKey");
+
+      this->privateKey = bio2string(pri_bio);
+      BIO_free(pri_bio);
+    }
+
   }
 
   ~Key() {
