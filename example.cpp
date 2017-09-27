@@ -148,6 +148,8 @@ int main() {
     cout << key.getCertificateKeyIdentifier() << endl;
     cout << key.getPublicKeyIdentifier() << endl;
     cout << "length : " << key.length() << endl;
+    cout << "subject : " << key.getCertificateSubject() << endl;
+    cout << "issuer : " << key.getCertificateIssuer() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }
@@ -341,6 +343,7 @@ int main() {
     cert.genRequest(subject, digest);
     certRequest = cert.getRequestString();
     cout << cert.getRequestPrint() << endl;
+    cout << "subject : " << cert.getRequestSubject() << endl;
 
     // signed by root. digest : sha512, serial : 1, days : 7
     certCertificate = root.signRequest(certRequest, "1", 7, digest);

@@ -746,6 +746,18 @@ public:
     return s;
   }
 
+  std::string getRequestSubject() {
+    if (x509_req == NULL)
+      throw std::runtime_error("request is null");
+
+    char *p;
+    p = X509_NAME_oneline(X509_REQ_get_subject_name(this->x509_req), NULL, 0);
+    string s(p);
+    OPENSSL_free(p);
+
+    return s;
+  }
+
   string signRequest(const string& request = "",
                      const string& serial = "",
                      const int days = 365,
