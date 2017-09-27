@@ -35,7 +35,7 @@ int main() {
     cout << "length : " << key.length() << endl;
 
     ofstream certCrt("rootca.crt.der2");
-    certCrt << key.getCertificateEncode();
+    certCrt << key.getCertificateEncoded();
     certCrt.close();
   } catch(std::exception const& e) {
     cout << e.what();
@@ -53,7 +53,7 @@ int main() {
     cout << key.getPrivateKeyIdentifier() << endl;
 
     ofstream certCrt("rootca.der2");
-    certCrt << key.getPrivateKeyEncode();
+    certCrt << key.getPrivateKeyEncoded();
     certCrt.close();
   } catch(std::exception const& e) {
     cout << e.what();

@@ -385,7 +385,7 @@ public:
     return privateKey;
   }
 
-  std::string getPrivateKeyEncode() {
+  std::string getPrivateKeyEncoded() {
     if (this->key == NULL)
       throw std::runtime_error("key is null");
 
@@ -903,7 +903,7 @@ public:
     return s;
   }
 
-  std::string getCertificateEncode() {
+  std::string getCertificateEncoded() {
     if (this->x509 == NULL)
       throw std::runtime_error("certificate is null");
 
