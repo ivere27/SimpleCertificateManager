@@ -1166,16 +1166,18 @@ public:
     if (!p12)
       throw std::runtime_error("PKCS12_create");
 
-    PKCS12_set_mac(p12,
-                   passphrase.c_str(),
-                   -1,
-                   NULL,
-                   0,
-                   maciter,
-                   NULL); // const EVP_MD *macmd
+    if (!PKCS12_set_mac(p12,
+                        passphrase.c_str(),
+                        -1,
+                        NULL,
+                        0,
+                        maciter,
+                        NULL)) // const EVP_MD *macmd
+      throw std::runtime_error("PKCS12_set_mac");
 
 
-    i2d_PKCS12_bio(bio, p12);
+    if (!i2d_PKCS12_bio(bio, p12))
+      throw std::runtime_error("i2d_PKCS12_bio");
   }
 
   bool hasPrivateKey() {
