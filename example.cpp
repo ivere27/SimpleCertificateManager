@@ -347,6 +347,8 @@ int main() {
 
     cert.loadCertificate(certCertificate);
     cout << cert.getCertificatePrint() << endl;
+    cout << "subject : " << cert.getCertificateSubject() << endl;
+    cout << "issuer : " << cert.getCertificateIssuer() << endl;
   } catch(std::exception const& e) {
     cout << e.what();
   }

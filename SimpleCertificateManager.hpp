@@ -942,6 +942,30 @@ public:
     return s;
   }
 
+  std::string getCertificateSubject() {
+    if (this->x509 == NULL)
+      throw std::runtime_error("certificate is null");
+
+    char *p;
+    p = X509_NAME_oneline(X509_get_subject_name(this->x509), NULL, 0);
+    string s(p);
+    OPENSSL_free(p);
+
+    return s;
+  }
+
+  std::string getCertificateIssuer() {
+    if (this->x509 == NULL)
+      throw std::runtime_error("certificate is null");
+
+    char *p;
+    p = X509_NAME_oneline(X509_get_issuer_name(this->x509), NULL, 0);
+    string s(p);
+    OPENSSL_free(p);
+
+    return s;
+  }
+
   std::string getPrivateKeyIdentifier(const string& digest = "sha1") {
     if (this->key == NULL)
       throw std::runtime_error("key is null");
