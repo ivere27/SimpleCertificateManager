@@ -310,14 +310,15 @@ public:
         throw std::runtime_error("d2i_PKCS12_bio");
 
       STACK_OF(X509) *certs = NULL;
+
+      // x509 is key's x509. if key is null, x509 is null.
       if (!PKCS12_parse(p12, passphrase.c_str(), &this->key, &this->x509, &certs))
         throw std::runtime_error("PKCS12_parse");
 
-      if (this->key == NULL && this->x509 == NULL)
+      if (this->key == NULL && this->x509 == NULL && certs == NULL)
         throw std::runtime_error("no data in pkcs#12 file");
 
-
-        // assign key if exists
+      // assign key if exists
       if (this->key != NULL) {
         RSA* rsa = EVP_PKEY_get0_RSA(this->key);
         if (!RSA_check_key(rsa))
@@ -357,25 +358,27 @@ public:
     }
 
     // assign privateKey
-    if (format == FORMAT_PEM) {
-      this->privateKey = privateKey;  // preserve passphrase
-    } else {
-      // get privateKey PEM string
-      BIO* pri_bio;
-      if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
-        throw std::runtime_error("BIO_new");
+    if (this->key != NULL) {
+        if (format == FORMAT_PEM) {
+            this->privateKey = privateKey;  // preserve passphrase
+        } else {
+            // get privateKey PEM string
+            BIO* pri_bio;
+            if ((pri_bio = BIO_new(BIO_s_mem())) == NULL )
+                throw std::runtime_error("BIO_new");
 
-      if (PEM_write_bio_PKCS8PrivateKey(pri_bio,
-                                        this->key,
-                                        NULL,
-                                        NULL,
-                                        0, NULL, NULL) != 1)
-        throw std::runtime_error("PEM_write_bio_PKCS8PrivateKey");
+            if (PEM_write_bio_PKCS8PrivateKey(pri_bio,
+                                              this->key,
+                                              NULL,
+                                              NULL,
+                                              0, NULL, NULL) != 1)
+                throw std::runtime_error("PEM_write_bio_PKCS8PrivateKey");
 
-      this->privateKey = bio2string(pri_bio);
-      BIO_free(pri_bio);
+            this->privateKey = bio2string(pri_bio);
+            BIO_free(pri_bio);
+        }
+
     }
-
   }
 
   ~Key() {
@@ -1177,6 +1180,9 @@ public:
 
   bool hasPrivateKey() {
     return (this->key);
+  }
+  bool hasPublicKey() {
+    return (this->pubkey);
   }
   bool hasCertificate() {
     return (this->x509);
