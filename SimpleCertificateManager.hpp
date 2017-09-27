@@ -1124,9 +1124,9 @@ public:
     return s;
   }
 
-  string getPkcs12(const string& passphrase = "") {
+  string getPkcs12(const string& passphrase = "", const string& name = "") {
     BIO *bio = BIO_new(BIO_s_mem());
-    topk12(bio, passphrase);
+    topk12(bio, passphrase, name);
 
     string s = bio2string(bio);
     BIO_free(bio);
@@ -1135,7 +1135,7 @@ public:
   }
 
   // export
-  void topk12(BIO* bio, const string& passphrase = "") {
+  void topk12(BIO* bio, const string& passphrase = "", const string& name = "") {
     int key_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
     int cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
     int iter = PKCS12_DEFAULT_ITER;
@@ -1154,7 +1154,7 @@ public:
 
     PKCS12 *p12 = NULL;
     p12 = PKCS12_create(passphrase.c_str(),
-                        NULL, // name
+                        name.c_str(),
                         this->key,
                         this->x509,
                         certs,
