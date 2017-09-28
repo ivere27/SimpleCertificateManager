@@ -498,10 +498,40 @@ public:
     if (bio == NULL)
       throw std::runtime_error("BIO_new");
 
-    RSA* rsa = EVP_PKEY_get0_RSA(X509_PUBKEY_get0(this->pubkey));
+    int evp_pkey_id = EVP_PKEY_id(X509_PUBKEY_get0(this->pubkey));
+    switch(evp_pkey_id) {
+      case EVP_PKEY_RSA: {
+        RSA* rsa = EVP_PKEY_get0_RSA(X509_PUBKEY_get0(this->pubkey));
 
-    if (!PEM_write_bio_RSA_PUBKEY(bio, rsa))
-      throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
+        if (!PEM_write_bio_RSA_PUBKEY(bio, rsa))
+          throw std::runtime_error("PEM_write_bio_RSA_PUBKEY");
+
+        break;
+      }
+      case EVP_PKEY_DSA: {
+        DSA* dsa = EVP_PKEY_get0_DSA(X509_PUBKEY_get0(this->pubkey));
+
+        if (!PEM_write_bio_DSA_PUBKEY(bio, dsa))
+          throw std::runtime_error("PEM_write_bio_DSA_PUBKEY");
+        break;
+      }
+      case EVP_PKEY_EC: {
+        EC_KEY *eckey = EVP_PKEY_get0_EC_KEY(X509_PUBKEY_get0(this->pubkey));;
+
+        if (!PEM_write_bio_EC_PUBKEY(bio, eckey))
+          throw std::runtime_error("PEM_write_bio_EC_PUBKEY");
+        break;
+      }
+      case EVP_PKEY_DHX: {
+        DH* dh = EVP_PKEY_get0_DH(X509_PUBKEY_get0(this->pubkey));
+
+        if (!PEM_write_bio_DHxparams(bio, dh))
+          throw std::runtime_error("PEM_write_bio_EC_PUBKEY");
+        break;
+      }
+      default:
+        throw std::runtime_error("unknown EVP_PKEY_id");
+    }
 
     string s = bio2string(bio);
     BIO_free(bio);
