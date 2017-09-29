@@ -767,8 +767,11 @@ public:
       throw std::runtime_error("request is null");
 
     BIO *bio = BIO_new(BIO_s_mem());
-    if (!X509_REQ_print(bio, x509_req))
-      throw std::runtime_error("X509_REQ_print");
+    if (!X509_REQ_print_ex(bio,
+                           this->x509_req,
+                           this->nmflag,
+                           X509_FLAG_COMPAT)) // certflag defaults
+      throw std::runtime_error("X509_REQ_print_ex");
 
     string s = bio2string(bio);
     BIO_free(bio);
@@ -780,10 +783,11 @@ public:
     if (x509_req == NULL)
       throw std::runtime_error("request is null");
 
-    char *p;
-    p = X509_NAME_oneline(X509_REQ_get_subject_name(this->x509_req), NULL, 0);
-    string s(p);
-    OPENSSL_free(p);
+    BIO *bio = BIO_new(BIO_s_mem());
+    X509_NAME_print_ex(bio, X509_REQ_get_subject_name(this->x509_req), 0, this->nmflag);
+
+    string s = bio2string(bio);
+    BIO_free(bio);
 
     return s;
   }
@@ -975,8 +979,11 @@ public:
       throw std::runtime_error("certificate is null");
 
     BIO *bio = BIO_new(BIO_s_mem());
-    if (!X509_print(bio, this->x509))
-      throw std::runtime_error("X509_print");
+    if (!X509_print_ex(bio,
+                       this->x509,
+                       this->nmflag,
+                       X509_FLAG_COMPAT)) // certflag defaults
+      throw std::runtime_error("X509_print_ex");
 
     string s = bio2string(bio);
     BIO_free(bio);
@@ -988,10 +995,11 @@ public:
     if (this->x509 == NULL)
       throw std::runtime_error("certificate is null");
 
-    char *p;
-    p = X509_NAME_oneline(X509_get_subject_name(this->x509), NULL, 0);
-    string s(p);
-    OPENSSL_free(p);
+    BIO *bio = BIO_new(BIO_s_mem());
+    X509_NAME_print_ex(bio, X509_get_subject_name(this->x509), 0, this->nmflag);
+
+    string s = bio2string(bio);
+    BIO_free(bio);
 
     return s;
   }
@@ -1000,10 +1008,11 @@ public:
     if (this->x509 == NULL)
       throw std::runtime_error("certificate is null");
 
-    char *p;
-    p = X509_NAME_oneline(X509_get_issuer_name(this->x509), NULL, 0);
-    string s(p);
-    OPENSSL_free(p);
+    BIO *bio = BIO_new(BIO_s_mem());
+    X509_NAME_print_ex(bio, X509_get_issuer_name(this->x509), 0, this->nmflag);
+
+    string s = bio2string(bio);
+    BIO_free(bio);
 
     return s;
   }
@@ -1100,6 +1109,11 @@ public:
       this->chtype = chtype;
     else
       throw std::runtime_error("unknown chtype");
+
+    if (this->chtype == MBSTRING_UTF8)
+      this->nmflag = ASN1_STRFLGS_UTF8_CONVERT | XN_FLAG_SEP_CPLUS_SPC;
+    else
+      this->nmflag = XN_FLAG_COMPAT;
   }
 
   void loadConf(const string& config = "") {
@@ -1275,6 +1289,7 @@ private:
   vector<X509*> ca;
 
   unsigned long chtype = MBSTRING_UTF8; // PKIX recommendation
+  unsigned long nmflag = ASN1_STRFLGS_UTF8_CONVERT | XN_FLAG_SEP_CPLUS_SPC;
 };
 
 } // namespace certificate
