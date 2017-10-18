@@ -215,6 +215,22 @@ static std::string digestX509Pubkey(X509* x509, const string& digest = "sha1") {
   return OPENSSL_buf2hexstr(buf, EVP_MD_size(md));
 }
 
+static std::string getStringOfCombinationIndex(const vector<string>& elements,
+                                               unsigned long long index) {
+  string s = "";
+  int n = elements.size();
+
+  while(index >= n) {
+    int k = index % n;
+    index = index / n - 1;
+    s = elements[k] + s;
+  }
+  s = elements[index] + s;
+
+  return s;
+}
+
+
 class Key {
 public:
   Key(const int kbits, const string& cipher = "", const string& passphrase = "") {
