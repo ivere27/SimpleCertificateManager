@@ -1276,8 +1276,9 @@ public:
   }
 
 
-  // FIXME : this is POC. need to use low level APIs.
-  // Key key = Key(2048, "aes256", "zz") => 2 length, 26^2 : 1.5s
+  // FIXME : this is POC. need to use low level APIs
+  // PEM : Key(2048, "aes256", "zz")              => 2 length, 26^2 : 1.4s
+  // PKCS12 : Key(2048, "aes256").getPkcs12("zz") => 2 length, 26^2 : 0.3s
   // bruteforce attack to FORMAT_PEM or FORMAT_PKCS12
   string bruteforcePassphrase(const string& privateKey,
                               const int format,
@@ -1288,14 +1289,24 @@ public:
                               const int maxLetterLength = 64) {
 
     if (format == FORMAT_PEM) {
+      // first of all, try empty("") passphrase.
+      BIO* bio = BIO_new_mem_buf(privateKey.data(), privateKey.size());
+      if (!bio)
+        throw std::runtime_error("BIO_new_mem_buf");
+
+      string passphrase = "";
+      if (PEM_read_bio_PrivateKey(bio, NULL, 0, (void*)passphrase.c_str()))
+        throw std::runtime_error("passphrase is empty string");
+
+
       for (int i = start; i<=end; i++) {
         string passphrase = getStringOfCombinationIndex(elements, i);
-        cout << "candidate : " << i << " \t " << passphrase << endl;
 
         if ( passphrase.length() < minLetterLength
           || passphrase.length() > maxLetterLength)
           continue;
 
+        // FIXME : too much copies!
         BIO* bio = BIO_new_mem_buf(privateKey.data(), privateKey.size());
         if (!bio)
           throw std::runtime_error("BIO_new_mem_buf");
@@ -1307,9 +1318,33 @@ public:
           return passphrase;
       }
     } else if (format == FORMAT_PKCS12) {
+      BIO* bio = BIO_new_mem_buf(privateKey.data(), privateKey.size());
+      if (!bio)
+        throw std::runtime_error("BIO_new_mem_buf");
 
+      PKCS12 *p12 = NULL;
+      if ((p12 = d2i_PKCS12_bio(bio, NULL)) == NULL)
+        throw std::runtime_error("d2i_PKCS12_bio");
+
+      // try empty("") passphrase
+      if (PKCS12_parse(p12, NULL, NULL, NULL, NULL))
+        throw std::runtime_error("passphrase is empty string");
+
+      for (int i = start; i<=end; i++) {
+        string passphrase = getStringOfCombinationIndex(elements, i);
+
+        if ( passphrase.length() < minLetterLength
+          || passphrase.length() > maxLetterLength)
+          continue;
+
+        if (PKCS12_parse(p12,
+                         passphrase.c_str(),
+                         NULL,
+                         NULL,
+                         NULL))
+          return passphrase;
+      }
     }
-
 
     return "";
   }

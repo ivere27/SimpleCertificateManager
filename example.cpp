@@ -26,7 +26,7 @@ int main() {
 
 #ifdef TEST_BRUTEFORCE_PASSPHRASE_PEM
   try {
-    Key key = Key(2048, "aes256", "zz");  // passphrase 'zz'
+    string pem = Key(2048, "aes256", "zz").getPrivateKeyString(); // passphrase 'zz'
 
     vector<string> elements;
     for (char i = 'a';i <='z';i++)
@@ -34,11 +34,35 @@ int main() {
 
     int start = pow(elements.size(),1);               // 2 length
     int end = start + pow(elements.size(),2) - 1;     // 2 length
-    string passphrase = key.bruteforcePassphrase(key.getPrivateKeyString(),
-                                                 FORMAT_PEM,
-                                                 elements,
-                                                 start,
-                                                 end);
+    string passphrase = Key().bruteforcePassphrase(pem,
+                                                   FORMAT_PEM,
+                                                   elements,
+                                                   start,
+                                                   end);
+    if (!passphrase.empty())
+      cout << "found! " << passphrase << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
+  return 0;
+#endif  //TEST_BRUTEFORCE_PASSPHRASE_PEM
+
+  #ifdef TEST_BRUTEFORCE_PASSPHRASE_PKCS12
+  try {
+    string pkcs12 = Key(2048, "aes256").getPkcs12("zz"); // passphrase 'zz'
+
+    vector<string> elements;
+    for (char i = 'a';i <='z';i++)
+      elements.push_back(string(1, i));
+
+    int start = pow(elements.size(),1);               // 2 length
+    int end = start + pow(elements.size(),2) - 1;     // 2 length
+    string passphrase = Key().bruteforcePassphrase(pkcs12,
+                                                   FORMAT_PKCS12,
+                                                   elements,
+                                                   start,
+                                                   end);
     if (!passphrase.empty())
       cout << "found! " << passphrase << endl;
   } catch(std::exception const& e) {
