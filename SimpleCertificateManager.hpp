@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -229,7 +230,6 @@ static std::string getStringOfCombinationIndex(const vector<string>& elements,
 
   return s;
 }
-
 
 class Key {
 public:
@@ -1273,6 +1273,45 @@ public:
 
     if (!i2d_PKCS12_bio(bio, p12))
       throw std::runtime_error("i2d_PKCS12_bio");
+  }
+
+
+  // FIXME : this is POC. need to use low level APIs.
+  // Key key = Key(2048, "aes256", "zz") => 2 length, 26^2 : 1.5s
+  // bruteforce attack to FORMAT_PEM or FORMAT_PKCS12
+  string bruteforcePassphrase(const string& privateKey,
+                              const int format,
+                              const vector<string> elements,
+                              const unsigned long long start = 0,
+                              const unsigned long long end = 0,
+                              const int minLetterLength = 0,
+                              const int maxLetterLength = 64) {
+
+    if (format == FORMAT_PEM) {
+      for (int i = start; i<=end; i++) {
+        string passphrase = getStringOfCombinationIndex(elements, i);
+        cout << "candidate : " << i << " \t " << passphrase << endl;
+
+        if ( passphrase.length() < minLetterLength
+          || passphrase.length() > maxLetterLength)
+          continue;
+
+        BIO* bio = BIO_new_mem_buf(privateKey.data(), privateKey.size());
+        if (!bio)
+          throw std::runtime_error("BIO_new_mem_buf");
+
+        if (PEM_read_bio_PrivateKey(bio,
+                                    NULL,
+                                    0,
+                                    (void*)passphrase.c_str()))
+          return passphrase;
+      }
+    } else if (format == FORMAT_PKCS12) {
+
+    }
+
+
+    return "";
   }
 
   bool hasPrivateKey() {

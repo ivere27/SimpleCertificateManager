@@ -24,6 +24,30 @@ std::string get_file_contents(const char *filename)
 
 int main() {
 
+#ifdef TEST_BRUTEFORCE_PASSPHRASE_PEM
+  try {
+    Key key = Key(2048, "aes256", "zz");  // passphrase 'zz'
+
+    vector<string> elements;
+    for (char i = 'a';i <='z';i++)
+      elements.push_back(string(1, i));
+
+    int start = pow(elements.size(),1);               // 2 length
+    int end = start + pow(elements.size(),2) - 1;     // 2 length
+    string passphrase = key.bruteforcePassphrase(key.getPrivateKeyString(),
+                                                 FORMAT_PEM,
+                                                 elements,
+                                                 start,
+                                                 end);
+    if (!passphrase.empty())
+      cout << "found! " << passphrase << endl;
+  } catch(std::exception const& e) {
+    cout << e.what();
+  }
+
+  return 0;
+#endif  //TEST_BRUTEFORCE_PASSPHRASE_PEM
+
 #ifdef TEST_LOAD_CERTIFICATE_DER
   // ./openssl x509 -outform der -in rootca.crt -out rootca.crt.der
   try {
